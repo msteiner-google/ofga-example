@@ -1,40 +1,43 @@
 """Main for creating a store."""
 
-import asyncio
-from typing import TYPE_CHECKING, cast
+from argparse import ArgumentParser
+from pathlib import Path
 
-import openfga_sdk
+from injector import Binder, Injector, SingletonScope
 from loguru import logger
-from openfga_sdk.client import OpenFgaClient
-from openfga_sdk.models.create_store_request import CreateStoreRequest
 
-from configuration.configuration_model import (
-    OpenFGAServerConfiguration,
-    StoreConfiguration,
-)
-
-if TYPE_CHECKING:
-    from openfga_sdk.models.create_store_response import CreateStoreResponse
+from configuration import ConfigurationModule
+from configuration.configuration_model import GeneralConfiguration
+from project_types import SerializedConfigurationPath, ShouldResolveMissingValues
 
 
-async def _main() -> None:
-    configuration = OpenFGAServerConfiguration()
-    store_config = StoreConfiguration()
-    logger.info("{store}", store=store_config)
-    openfga_client_configuration = openfga_sdk.ClientConfiguration(
-        api_url=configuration.api_url,
+def _main() -> None:
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--configuration",
+        type=str,
+        default=None,
+        help="Path where to find the serialized (in JSON) configuration.",
     )
-    async with OpenFgaClient(openfga_client_configuration) as fga_client:
-        body = CreateStoreRequest(
-            name=store_config.store_name,
+    args = parser.parse_args()
+
+    def _bind_flags(binder: Binder) -> None:
+        configuration_path = SerializedConfigurationPath(Path(args.configuration))
+        binder.bind(
+            SerializedConfigurationPath, to=configuration_path, scope=SingletonScope
         )
-        response: CreateStoreResponse = cast(
-            "CreateStoreResponse", await fga_client.create_store(body)
+        binder.bind(
+            ShouldResolveMissingValues,
+            to=ShouldResolveMissingValues.YES,
+            scope=SingletonScope,
         )
 
-        logger.info("Operation response: {response}", response=response)
+    injector = Injector(modules=[_bind_flags, ConfigurationModule])
+
+    config = injector.get(GeneralConfiguration)
+    logger.info("config: {}", config)
 
 
 def entrypoint() -> None:
     """Actual entrypoint."""
-    asyncio.run(_main())
+    _main()

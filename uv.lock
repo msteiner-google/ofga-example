@@ -234,6 +234,15 @@ wheels = [
 ]
 
 [[package]]
+name = "injector"
+version = "0.22.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/f6/3a74e4b983b92eebb77b2f27ee526aa7eaf0e62a5913847d59361b4bae5f/injector-0.22.0.tar.gz", hash = "sha256:79b2d4a0874c75d3aa735f11c5b32b89d9542711ca07071161882c5e9cc15ed6", size = 86166, upload-time = "2024-07-07T23:02:23.275Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/37/37fee65c78ae3f9675e6190bfd12304e5d8d99564f0ec91716bf2bfbbb5f/injector-0.22.0-py2.py3-none-any.whl", hash = "sha256:74379ccef3b893bc7d0b7d504c255b5160c5a55e97dc7bdcc73cb33cc7dce3a1", size = 20461, upload-time = "2024-07-07T23:02:21.103Z" },
+]
+
+[[package]]
 name = "ipython"
 version = "9.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -455,6 +464,7 @@ name = "open-fga-demo"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "injector" },
     { name = "loguru" },
     { name = "openfga-sdk" },
     { name = "pydantic" },
@@ -470,6 +480,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "injector", specifier = ">=0.22.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "openfga-sdk", specifier = ">=0.9.4" },
     { name = "pydantic", specifier = ">=2.11.4" },

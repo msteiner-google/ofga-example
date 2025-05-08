@@ -1,0 +1,9 @@
+{
+  "server_configuration": {
+    "api_url": "http://34.79.138.32:8080"
+  },
+  "store_configuration": {
+    "store_name": "test_store",
+    "security_model_file": "authorization_model.json"
+  }
+}

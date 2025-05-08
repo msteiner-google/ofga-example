@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "injector>=0.22.0",
     "loguru>=0.7.3",
     "openfga-sdk>=0.9.4",
     "pydantic>=2.11.4",
