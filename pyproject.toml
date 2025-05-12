@@ -33,10 +33,11 @@ build-backend = "hatchling.build"
 
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/create_store"]
+packages = ["src"]
 
 [project.scripts]
-hello = "create_store.main:entrypoint"
+create_store = "src.cli_commands.create_store.main:entrypoint"
+write_auth_model = "src.cli_commands.write_auth_model.main:entrypoint"
 
 # RUFF section
 [tool.ruff]

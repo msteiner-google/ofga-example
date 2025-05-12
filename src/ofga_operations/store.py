@@ -1,29 +1,33 @@
 """Operations relative to the store."""
 
+import json
 from typing import cast
 
 import openfga_sdk
 from loguru import logger
 from openfga_sdk.client import OpenFgaClient
+from openfga_sdk.models import WriteAuthorizationModelResponse
 from openfga_sdk.models.create_store_request import CreateStoreRequest
 from openfga_sdk.models.create_store_response import CreateStoreResponse
+from openfga_sdk.models.write_authorization_model_request import (
+    WriteAuthorizationModelRequest,
+)
 
-from configuration.configuration_model import GeneralConfiguration
+from src.configuration.configuration_model import GeneralConfiguration
+from src.project_types import OFGASecurityModel
 
 
-def _get_or_create_client(
-    configuration: GeneralConfiguration, openfga_client: OpenFgaClient | None
-) -> OpenFgaClient:
-    if openfga_client:
-        return openfga_client
+def _get_client(configuration: GeneralConfiguration) -> OpenFgaClient:
     client_configuration = openfga_sdk.ClientConfiguration(
-        api_url=configuration.server_configuration.api_url
+        api_url=configuration.server_configuration.api_url,
+        store_id=configuration.store_configuration.store_id,
+        authorization_model_id=configuration.store_configuration.authorization_model_id,
     )
     return OpenFgaClient(client_configuration)
 
 
 async def get_or_create_store(
-    configuration: GeneralConfiguration, openfga_client: OpenFgaClient | None = None
+    configuration: GeneralConfiguration,
 ) -> CreateStoreResponse:
     """Gets or create a store.
 
@@ -32,12 +36,32 @@ async def get_or_create_store(
     `GetStoreRequest` in the
     [metadata](https://github.com/openfga/python-sdk/blob/main/README.md#documentation-for-models)
     """
-    client = _get_or_create_client(configuration, openfga_client)
+    client = _get_client(configuration)
     body = CreateStoreRequest(name=configuration.store_configuration.store_name)
     response: CreateStoreResponse = cast(
         "CreateStoreResponse", await client.create_store(body)
     )
     logger.info("Create store response: {store}", store=response)
-    if not openfga_client:
-        await client.close()
+    await client.close()
     return response
+
+
+async def write_authorization_id(
+    configuration: GeneralConfiguration, auth_model_definition: OFGASecurityModel
+) -> openfga_sdk.WriteAuthorizationModelResponse:
+    """Writes an authorization model to the store."""
+    client = _get_client(configuration)
+    try:
+        logger.info("auth model: {data}", data=json.dumps(auth_model_definition))
+        body = WriteAuthorizationModelRequest(**auth_model_definition)
+        response: WriteAuthorizationModelResponse = cast(
+            "WriteAuthorizationModelResponse",
+            await client.write_authorization_model(body),
+        )
+    except Exception:
+        logger.exception("What?")
+        raise
+    else:
+        return response
+    finally:
+        await client.close()
