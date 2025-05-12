@@ -2,9 +2,7 @@
 
 import asyncio
 import json
-from collections.abc import Mapping
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from injector import (
     Module,
@@ -14,7 +12,6 @@ from injector import (
 )
 from openfga_sdk import ClientConfiguration, OpenFgaClient
 from pydantic import ValidationError
-from pydantic_core.core_schema import ValidationFunction
 
 from src.configuration.configuration_model import (
     GeneralConfiguration,
@@ -28,38 +25,10 @@ from src.project_types import (
     SerializedConfigurationPath,
     ShouldResolveMissingValues,
 )
+from src.project_types.utils import load_json_from_file_path
 
 if TYPE_CHECKING:
     from openfga_sdk.models.create_store_response import CreateStoreResponse
-
-
-def _load_file(path_str: str) -> str:
-    path = Path(path_str)
-    if not path.exists():
-        raise FileNotFoundError(  # noqa: TRY003
-            f"Path {path_str} does not exists. Resolved path = {path.absolute()!s}"
-        )
-    with path.open("r") as f:
-        return f.read()
-
-
-def load_json_from_file_path(file_path: str) -> Mapping[str, Any]:
-    """Helper function to load and parse JSON from a file path using _load_file."""
-    try:
-        file_content = _load_file(file_path)
-        return cast("Mapping", json.loads(file_content))
-    except FileNotFoundError as e:
-        # Convert to ValueError for Pydantic to catch as a validation error
-        raise ValueError(f"Security model file not found: {file_path}") from e  # noqa: TRY003
-    except json.JSONDecodeError as e:
-        raise ValueError(  # noqa: TRY003
-            f"Error decoding JSON from security model file '{file_path}': "
-            f"{e.msg} (at line {e.lineno} column {e.colno})"
-        ) from e
-    except Exception as e:  # Catch any other loading errors
-        raise ValueError(  # noqa: TRY003
-            f"Could not load security model from file '{file_path}': {e!s}"
-        ) from e
 
 
 class ConfigurationModule(Module):
@@ -115,7 +84,7 @@ class ConfigurationModule(Module):
         return general_configuration.server_configuration
 
     @provider
-    def _provide_ofga_api_client(
+    def _provide_ofga_api_client(  # noqa: PLR6301
         self,
         server_configuration: OFGAServerConfiguration,
         store_configuration: OFGAStoreConfiguration,

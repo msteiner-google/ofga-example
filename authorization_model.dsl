@@ -3,6 +3,11 @@ model
 
 type user
 
-type document
+type group
   relations
-    define reader: [user]
+    define member: [user:*, user, group#member]
+
+type doc
+  relations
+    define can_read: viewer
+    define viewer: [user:*, user, group#member, group]

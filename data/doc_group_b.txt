@@ -1,0 +1,4 @@
+This is a list of todo items for members of group B:
+
+1. Clean up unused dependencies in code base (Low priority)
+2. Set up a proper CI/CD using github actions (High priority)

@@ -1,0 +1,20 @@
+{
+  "tuples": [
+    {
+      "friendly_name": "doc_publuc_is_public",
+      "relation_body": "user:* viewer doc:public_doc.txt"
+    },
+    {
+      "friendly_name": "doc_a_can_be_read_by_alice",
+      "relation_body": "user:alice viewer doc:doc_alice.txt"
+    },
+    {
+      "friendly_name": "bob_belongs_to_group_b",
+      "relation_body": "user:bob member group:group_b"
+    },
+    {
+      "friendly_name": "doc_b_can_be_read_by_group_b",
+      "relation_body": "group:group_b#member viewer doc:document_group_b.txt"
+    }
+  ]
+}

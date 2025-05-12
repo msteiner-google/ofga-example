@@ -1,0 +1,4 @@
+This is a personal to-do list for Alice:
+
+1. Learn how to use open-fga (High priority).
+2. Build a tool to automatically translate openfga DSL into valid JSON (Medium priority).

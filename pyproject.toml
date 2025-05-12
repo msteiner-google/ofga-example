@@ -38,6 +38,7 @@ packages = ["src"]
 [project.scripts]
 create_store = "src.cli_commands.create_store.main:entrypoint"
 write_auth_model = "src.cli_commands.write_auth_model.main:entrypoint"
+write_tuples = "src.cli_commands.write_tuples.main:entrypoint"
 
 # RUFF section
 [tool.ruff]

@@ -3,9 +3,9 @@
         "api_url": "http://34.79.138.32:8080"
     },
     "store_configuration": {
-        "store_name": "test_store",
-        "store_id": "01JV2AZDNQ962VFJ696FT9S114",
+        "store_name": "document_store",
+        "store_id": "01JV30RDWB8Y699FK8V73V3KR0",
         "authorization_model_file": "authorization_model.json",
-        "authorization_model_id": "01JV2FBCREHK7JDS2BWD1CPW1A"
+        "authorization_model_id": "01JV30RDXX3NARK8336MXRSAV7"
     }
 }
