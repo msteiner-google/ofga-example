@@ -5,11 +5,15 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi[standard]>=0.115.12",
+    "fastapi-injector>=0.8.0",
+    "google-adk>=0.5.0",
     "injector>=0.22.0",
     "loguru>=0.7.3",
     "openfga-sdk>=0.9.4",
     "pydantic>=2.11.4",
     "textual>=3.2.0",
+    "uvicorn>=0.34.2",
 ]
 
 [dependency-groups]
@@ -39,6 +43,7 @@ packages = ["src"]
 create_store = "src.cli_commands.create_store.main:entrypoint"
 write_auth_model = "src.cli_commands.write_auth_model.main:entrypoint"
 write_tuples = "src.cli_commands.write_tuples.main:entrypoint"
+start_server = "src.agent.main:entrypoint"
 
 # RUFF section
 [tool.ruff]
