@@ -3,6 +3,8 @@
 # type: ignore[reportCallIssue]
 
 from collections.abc import AsyncGenerator
+import json
+from pathlib import Path
 from typing import override
 
 from google.adk.agents import BaseAgent
@@ -18,6 +20,7 @@ from src.agent.custom_types import (
     DocumentListArtifactKey,
     RowListArtifactKey,
 )
+from src.ofga_operations.checks import can_user_read
 
 
 class _RetrievalAgent(BaseAgent):
@@ -43,7 +46,33 @@ class _RetrievalAgent(BaseAgent):
     async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
-        yield Event(author=self.name)
+        if not ctx.artifact_service:
+            raise RuntimeError()
+
+        # TODO: pass this as part of the configuration.
+        path = Path("data")
+        document_path = path / "documents"
+
+        paths = [doc.absolute() for doc in document_path.glob("*.txt")]
+        path_2_contents = {}
+        for p in paths:
+            with p.open("r") as f:
+                content = f.read()
+                logger.debug("Retrieving {}. Length {}", p, len(content))
+                path_2_contents[str(p.absolute())] = f.read()
+
+        await ctx.artifact_service.save_artifact(
+            app_name=ctx.app_name,
+            session_id=ctx.session.id,
+            user_id=ctx.session.user_id,
+            filename=self.documents_artifact_key,
+            artifact=types.Part(text=json.dumps(path_2_contents)),
+        )
+
+        yield Event(
+            author=self.name,
+            custom_metadata={"retrieved_files": True, "has_error": False},
+        )
 
 
 class _FilterAgent(BaseAgent):
@@ -61,7 +90,7 @@ class _FilterAgent(BaseAgent):
         rows_artifact_key: RowListArtifactKey,
     ) -> None:
         """Init method."""
-        super().__init__(
+        super().__init__(  # type: ignore
             name="filter_agent",
             ofga_client=openfga_client,
             documents_artifact_key=documents_artifact_key,
@@ -72,7 +101,42 @@ class _FilterAgent(BaseAgent):
     async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
-        yield Event(author=self.name)
+        artifact_service = ctx.artifact_service
+        if not artifact_service:
+            raise RuntimeError()
+
+        user_id = ctx.session.user_id
+        content = await artifact_service.load_artifact(
+            app_name=ctx.app_name,
+            session_id=ctx.session.id,
+            user_id=user_id,
+            filename=self.documents_artifact_key,
+        )
+        if not content or not content.text:
+            raise RuntimeError()
+
+        path_2_content: dict[str, str] = json.loads(content.text)
+        filtered_path_2_content = {}
+        for file_path_str, content in path_2_content.items():
+            file_path = Path(file_path_str)
+            file_name = file_path.name
+            logger.info("Checking if user {} can read file {}", user_id, file_name)
+            if await can_user_read(user_id, file_name, self.ofga_client):
+                logger.info("He/she can read file {}", file_name)
+                filtered_path_2_content[str(file_path.absolute())] = content
+
+        await artifact_service.save_artifact(
+            app_name=ctx.app_name,
+            session_id=ctx.session.id,
+            user_id=ctx.session.user_id,
+            filename=self.documents_artifact_key,
+            artifact=types.Part(text=json.dumps(filtered_path_2_content)),
+        )
+
+        yield Event(
+            author=self.name,
+            custom_metadata={"filtered_files": True, "has_error": False},
+        )
 
 
 class OFGATestAgent(BaseAgent):
@@ -105,19 +169,28 @@ class OFGATestAgent(BaseAgent):
     async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
-        for event in ctx.session.events:
-            logger.info("{}", event)
+        logger.debug("Inside agent body.")
 
-        reply = types.Content(role="agent", parts=[types.Part(text="Canned response")])
-        state_change = {
-            "user_visible_messages": ctx.session.state["user_visible_messages"]
-            + ["test"]
-        }
-        actions_with_update = EventActions(state_delta=state_change)
-        system_event = Event(
-            invocation_id="test_update", author="system", actions=actions_with_update
+        data_retrieved_successfully: bool = False
+        async for event in self.retrieval_agent.run_async(ctx):
+            event_metadata = event.custom_metadata
+            if event_metadata:
+                logger.info("Event has metadata.")
+                if (
+                    event_metadata["retrieved_files"]
+                    and not event_metadata["has_error"]
+                ):
+                    data_retrieved_successfully = True
+        if data_retrieved_successfully:
+            logger.info("data was retrieved!")
+
+        async for event in self.filter_agent.run_async(ctx):
+            event_metadata = event.custom_metadata
+            if event_metadata:
+                logger.debug("Event has metadata")
+                if event_metadata["filtered_files"] and not event_metadata["has_error"]:
+                    logger.info("Data successfully filtered.")
+
+        yield Event(
+            author="agent", content=types.Content(parts=[types.Part(text="ran")])
         )
-        ctx.session_service.append_event(ctx.session, system_event)
-
-        logger.info(ctx.session.state)
-        yield Event(author="agent", content=reply)
