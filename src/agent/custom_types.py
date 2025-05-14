@@ -23,3 +23,5 @@ class CustomAgentState(BaseModel):
 
 AppName = NewType("AppName", str)
 AgentName = NewType("AgentName", str)
+DocumentListArtifactKey = NewType("DocumentListArtifactKey", str)
+RowListArtifactKey = NewType("RowListArtifactKey", str)

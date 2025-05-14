@@ -245,6 +245,6 @@ ignore = ["src/oldstuff"]
 
 reportMissingImports = true
 reportMissingTypeStubs = false
-# reportUnknownVariableType = false
+reportCallIssue = false
 
 pythonVersion = "3.12"
