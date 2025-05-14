@@ -1,9 +1,9 @@
 {
-    "server_configuration": {
-        "api_url": "http://34.79.138.32:8080"
-    },
-    "store_configuration": {
-        "store_name": "document_store",
-        "authorization_model_file": "authorization_model.json"
-    }
+  "server_configuration": {
+    "api_url": "http://34.79.138.32:8080"
+  },
+  "store_configuration": {
+    "store_name": "document_store",
+    "authorization_model_file": "data/authorization_models/authorization_model_document.json"
+  }
 }

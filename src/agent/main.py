@@ -1,58 +1,64 @@
 """Entrypoint."""
 
+# TODO: Create subagents for both the retrieval and the filtering through OFGA.
+
 import json
-from collections.abc import AsyncGenerator
-from typing import Any, override
+from argparse import ArgumentParser
+from pathlib import Path
+from typing import Any
 
 import uvicorn
 from fastapi import FastAPI
-from google.adk.agents import BaseAgent
-from google.adk.agents.invocation_context import InvocationContext
-from google.adk.events import Event, EventActions
+from fastapi_injector import Injected, attach_injector
 from google.adk.runners import Runner
-from google.adk.sessions import BaseSessionService, InMemorySessionService, Session
+from google.adk.sessions import BaseSessionService, Session
 from google.genai import types
+from injector import Binder, Injector, SingletonScope
 from loguru import logger
 
-from src.agent.custom_types import CustomAgentState, Message
+from src.agent.custom_types import AgentName, AppName, CustomAgentState, Message
+from src.agent.di import AgentModule
+from src.configuration import ConfigurationModule
+from src.project_types import SerializedConfigurationPath, ShouldResolveMissingValues
+
+parser = ArgumentParser()
+parser.add_argument(
+    "--configuration",
+    type=str,
+    help="Path where to find the serialized (in JSON) configuration.",
+)
+parser.add_argument(
+    "--app_name",
+    type=str,
+    default="test_ofga_app",
+    help="Name of the app",
+)
+parser.add_argument(
+    "--agent_name",
+    type=str,
+    default="test_ofga_agent",
+    help="Name of the agent.",
+)
+args = parser.parse_args()
+
+
+def _bind_flags(binder: Binder) -> None:
+    configuration_path = SerializedConfigurationPath(Path(args.configuration))
+    binder.bind(
+        SerializedConfigurationPath, to=configuration_path, scope=SingletonScope
+    )
+    binder.bind(
+        ShouldResolveMissingValues,
+        to=ShouldResolveMissingValues.YES,
+        scope=SingletonScope,
+    )
+    binder.bind(AppName, to=AppName(args.app_name), scope=SingletonScope)
+    binder.bind(AgentName, to=AgentName(args.agent_name), scope=SingletonScope)
+
 
 app = FastAPI()
-
-
-class OFGATestAgent(BaseAgent):
-    """Custom agent."""
-
-    def __init__(self, name: str) -> None:
-        """Init method."""
-        super().__init__(name=name)
-
-    @override
-    async def _run_async_impl(
-        self, ctx: InvocationContext
-    ) -> AsyncGenerator[Event, None]:
-        for event in ctx.session.events:
-            logger.info("{}", event)
-
-        reply = types.Content(role="agent", parts=[types.Part(text="Canned response")])
-        state_change = {
-            "user_visible_messages": ctx.session.state["user_visible_messages"]
-            + ["test"]
-        }
-        actions_with_update = EventActions(state_delta=state_change)
-        system_event = Event(
-            invocation_id="test_update", author="system", actions=actions_with_update
-        )
-        ctx.session_service.append_event(ctx.session, system_event)
-
-        logger.info(ctx.session.state)
-        yield Event(author="agent", content=reply)
-
-
-APP_NAME = "test_ofga"
-SESSION_ID = "test-session-id"
-USER_ID = "test-user"
-agent = OFGATestAgent(name=f"{APP_NAME}_agent")
-session_service = InMemorySessionService()
+inj = Injector([_bind_flags, ConfigurationModule(), AgentModule()])
+attach_injector(app, inj)
 
 
 def get_or_create_session(
@@ -74,20 +80,18 @@ def get_or_create_session(
     )
 
 
-runner = Runner(
-    agent=agent,  # Pass the custom orchestrator agent
-    app_name=APP_NAME,
-    session_service=session_service,
-)
-
-
 @app.post("/message")
-async def new_message(message: Message) -> dict[str, Any]:
+async def new_message(
+    message: Message,
+    app_name: AppName = Injected(AppName),  # noqa: B008
+    session_service: BaseSessionService = Injected(BaseSessionService),  # noqa: B008
+    runner: Runner = Injected(Runner),  # noqa: B008
+) -> dict[str, Any]:
     """New message endpoint."""
     session = get_or_create_session(
-        user_id=USER_ID,
-        app_name=APP_NAME,
-        session_id=SESSION_ID,
+        user_id=message.user_id,
+        app_name=app_name,
+        session_id=message.session_id,
         session_service=session_service,
     )
     content = types.Content(role="user", parts=[types.Part(text=message.body)])
@@ -103,9 +107,9 @@ async def new_message(message: Message) -> dict[str, Any]:
     logger.info("Agent Final Response: {}", final_response)
 
     final_session = get_or_create_session(
-        app_name=APP_NAME,
-        user_id=USER_ID,
-        session_id=SESSION_ID,
+        app_name=app_name,
+        user_id=message.user_id,
+        session_id=message.session_id,
         session_service=session_service,
     )
     logger.info("Final Session State:")
@@ -117,4 +121,4 @@ async def new_message(message: Message) -> dict[str, Any]:
 
 def entrypoint() -> None:
     """The actual entrypoint."""
-    uvicorn.run(app, host="0.0.0.0", port=8080)  # noqa: S104
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # noqa: S104
