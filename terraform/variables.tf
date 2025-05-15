@@ -1,35 +1,28 @@
 variable "project_id" {
   description = "The Google Cloud project ID."
   type        = string
-  default     = "msteiner-joonix"
+  default     = "msteiner-kubeflow"
 }
 
 variable "region" {
   description = "The Google Cloud region for resources."
   type        = string
-  default     = "europe-west1"
+  default     = "europe-west4"
 }
-
-variable "zone" {
-  description = "The Google Cloud zone for the GCE instance (e.g., us-central1-a)."
-  type        = string
-  default     = "europe-west1-d" # Or provide it explicitly
-}
-
 variable "cloud_sql_instance_name" {
   description = "Name for the Cloud SQL instance."
   type        = string
-  default     = "openfga-postgres-db"
+  default     = "openfga-db-instance"
 }
 
 variable "cloud_sql_tier" {
-  description = "The machine type for the Cloud SQL instance."
+  description = "Machine type for Cloud SQL (e.g., db-f1-micro, db-g1-small)."
   type        = string
-  default     = "db-g1-small"
+  default     = "db-f1-micro" # Choose based on needs
 }
 
 variable "cloud_sql_db_name" {
-  description = "Name of the database inside the Cloud SQL instance for OpenFGA."
+  description = "Name for the OpenFGA database."
   type        = string
   default     = "openfgadb"
 }
@@ -40,32 +33,26 @@ variable "cloud_sql_user_name" {
   default     = "openfgauser"
 }
 
-variable "gce_instance_name" {
-  description = "Name for the GCE instance running OpenFGA."
-  type        = string
-  default     = "openfga-server-vm"
-}
-
-variable "gce_machine_type" {
-  description = "Machine type for the GCE instance."
-  type        = string
-  default     = "e2-medium" # Provides a good balance for a small server
-}
-
-variable "gce_boot_image" {
-  description = "Boot image for the GCE instance."
-  type        = string
-  default     = "debian-cloud/debian-11"
-}
-
 variable "openfga_image" {
-  description = "The Docker image for OpenFGA server."
+  description = "The OpenFGA Docker image to deploy (e.g., openfga/openfga:latest)."
   type        = string
-  default     = "openfga/openfga:v1.8"
+  default     = "openfga/openfga:latest" # Ensure this image is suitable
 }
 
 variable "enable_openfga_playground" {
-  description = "Enable the OpenFGA playground UI."
+  description = "Enable the OpenFGA Playground UI."
   type        = bool
   default     = true
+}
+
+variable "cloud_run_service_name" {
+  description = "Name for the Cloud Run service."
+  type        = string
+  default     = "openfga-server"
+}
+
+variable "cloud_run_sa_name" {
+  description = "Name for the Cloud Run service account (short name)."
+  type        = string
+  default     = "openfga-run-sa"
 }

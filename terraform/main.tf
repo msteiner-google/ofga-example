@@ -1,12 +1,7 @@
-provider "google" {
-  project = var.project_id
-  region  = var.region
-}
-
 # Enable necessary APIs
-resource "google_project_service" "compute_api" {
+resource "google_project_service" "run_api" {
   project            = var.project_id
-  service            = "compute.googleapis.com"
+  service            = "run.googleapis.com"
   disable_on_destroy = false
 }
 
@@ -34,10 +29,14 @@ resource "random_password" "db_password" {
   special = false
 }
 
+data "google_compute_default_service_account" "default" {
+  project = var.project_id
+}
+
 # Store the database password in Secret Manager
 resource "google_secret_manager_secret" "db_password_secret" {
   project   = var.project_id
-  secret_id = "${var.cloud_sql_instance_name}-db-password" # This is the short name
+  secret_id = "${var.cloud_sql_instance_name}-db-password"
 
   replication {
     auto {}
@@ -46,8 +45,23 @@ resource "google_secret_manager_secret" "db_password_secret" {
 }
 
 resource "google_secret_manager_secret_version" "db_password_secret_version" {
-  secret      = google_secret_manager_secret.db_password_secret.id # Full ID: projects/.../secrets/...
+  secret      = google_secret_manager_secret.db_password_secret.id
   secret_data = random_password.db_password.result
+}
+
+data "google_iam_policy" "admin" {
+  binding {
+    role = "roles/secretmanager.secretAccessor"
+    members = [
+      "serviceAccount:${data.google_compute_default_service_account.default.email}",
+    ]
+  }
+}
+
+resource "google_secret_manager_secret_iam_policy" "policy" {
+  project     = var.project_id
+  secret_id   = google_secret_manager_secret.db_password_secret.id
+  policy_data = data.google_iam_policy.admin.policy_data
 }
 
 # Cloud SQL Postgres Instance
@@ -56,13 +70,17 @@ resource "google_sql_database_instance" "main" {
   name                = var.cloud_sql_instance_name
   region              = var.region
   database_version    = "POSTGRES_14"
-  deletion_protection = false
+  deletion_protection = false # Set to true for production
 
   settings {
     tier = var.cloud_sql_tier
     ip_configuration {
-      ipv4_enabled = true # Required for Cloud SQL Proxy from GCE by default
+      ipv4_enabled = true # Not strictly needed for Cloud Run direct connection
     }
+    # Ensure backups are enabled for production
+    # backup_configuration {
+    #   enabled = true
+    # }
   }
   depends_on = [google_project_service.sqladmin_api]
 }
@@ -82,138 +100,245 @@ resource "google_sql_user" "openfga_user" {
   password = random_password.db_password.result
 }
 
-# Service Account for GCE Instance
-resource "google_service_account" "gce_sa" {
-  project      = var.project_id
-  account_id   = substr("openfga-gce-sa-${random_password.db_password.id}", 0, 30) # Ensure unique & valid account_id
-  display_name = "OpenFGA GCE Service Account"
+
+resource "google_cloud_run_v2_job" "openfga_run_migrations" {
+  project             = var.project_id
+  name                = "run_db_migrations"
+  location            = var.region
+  deletion_protection = false # Set to true for production if desired
+  template {
+    template {
+
+
+      service_account       = data.google_compute_default_service_account.default.email
+      execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
+
+      # Volume for Cloud SQL socket
+      volumes {
+        name = "cloudsql" # An arbitrary name for the volume
+        cloud_sql_instance {
+          instances = [google_sql_database_instance.main.connection_name]
+        }
+      }
+
+      containers {
+        image = var.openfga_image
+
+        env {
+          name  = "OPENFGA_DATASTORE_ENGINE"
+          value = "postgres"
+        }
+        env {
+          name = "OPENFGA_DATASTORE_URI"
+          # The Cloud SQL socket will be at /cloudsql/INSTANCE_CONNECTION_NAME
+          # Adding sslmode=disable is often necessary for Unix socket connections to PostgreSQL.
+          value = "postgres:///postgres?host=/cloudsql/${google_sql_database_instance.main.connection_name}&sslmode=disable"
+        }
+        env {
+          name  = "OPENFGA_DATASTORE_USERNAME"
+          value = google_sql_user.openfga_user.name
+        }
+        env {
+          name = "OPENFGA_DATASTORE_PASSWORD" # This variable will be substituted in OPENFGA_DATASTORE_URI
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.db_password_secret.secret_id # Short name of the secret
+              version = "latest"                                                  # Or specific version: google_secret_manager_secret_version.db_password_secret_version.version
+            }
+          }
+        }
+        env {
+          name  = "OPENFGA_HTTP_ADDR"
+          value = ":8080"
+        }
+        env {
+          name  = "OPENFGA_GRPC_ADDR"
+          value = ":8081"
+        }
+        env {
+          name  = "OPENFGA_PLAYGROUND_ENABLED"
+          value = var.enable_openfga_playground ? "true" : "false"
+        }
+        env {
+          name  = "OPENFGA_LOG_FORMAT" # Recommended for Cloud Logging
+          value = "json"
+        }
+        env {
+          name  = "OPENFGA_AUTHN_METHOD" # For no auth. Use "preshared" for preshared key auth.
+          value = "none"
+        }
+
+        # Mount the Cloud SQL volume
+        volume_mounts {
+          name       = "cloudsql"  # Must match the volume name defined above
+          mount_path = "/cloudsql" # Standard directory where sockets are placed
+        }
+        args = ["migrate"]
+      }
+    }
+  }
+  provisioner "local-exec" {
+    when    = create # IMPORTANT: Only run on creation
+    command = <<-EOT
+      gcloud beta run jobs execute ${self.name} \
+        --region ${self.location} \
+        --project ${self.project} \
+        --wait
+    EOT
+    # Optional: Set environment variables for the gcloud command if needed
+    # environment = {
+    #   CLOUDSDK_CORE_PROJECT = self.project
+    # }
+    # Optional: Specify interpreter if not bash/sh
+    # interpreter = ["bash", "-c"]
+  }
 }
 
-# Grant GCE SA permission to access the Secret
-resource "google_secret_manager_secret_iam_member" "gce_sa_db_password_accessor" {
-  project   = google_secret_manager_secret.db_password_secret.project
-  secret_id = google_secret_manager_secret.db_password_secret.secret_id # Short name of the secret
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.gce_sa.email}"
+# Cloud Run Service for OpenFGA
+resource "google_cloud_run_v2_service" "openfga_service" {
+  project             = var.project_id
+  name                = var.cloud_run_service_name
+  location            = var.region
+  deletion_protection = false                 # Set to true for production if desired
+  ingress             = "INGRESS_TRAFFIC_ALL" # Allows all traffic, including from the internet
 
-  depends_on = [
-    google_secret_manager_secret.db_password_secret,
-    google_service_account.gce_sa
-  ]
-}
+  template {
+    service_account       = data.google_compute_default_service_account.default.email
+    execution_environment = "EXECUTION_ENVIRONMENT_GEN2" # Or GEN1 if preferred/needed
 
-# Grant GCE SA permission to connect to Cloud SQL
-resource "google_project_iam_member" "gce_sa_sql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.gce_sa.email}"
-  depends_on = [
-    google_sql_database_instance.main,
-    google_service_account.gce_sa
-  ]
-}
+    # Optional: Scaling configuration
+    scaling {
+      min_instance_count = 0 # Set to 1 for no cold starts on first request (but incurs cost)
+      max_instance_count = 5 # Adjust as needed
+    }
 
-# GCE Instance to run OpenFGA
-resource "google_compute_instance" "openfga_vm" {
-  project      = var.project_id
-  zone         = var.zone
-  name         = var.gce_instance_name
-  machine_type = var.gce_machine_type
-  tags         = ["openfga-server", "allow-http", "allow-grpc", "allow-playground"]
+    # Volume for Cloud SQL socket
+    volumes {
+      name = "cloudsql" # An arbitrary name for the volume
+      cloud_sql_instance {
+        instances = [google_sql_database_instance.main.connection_name]
+      }
+    }
 
-  boot_disk {
-    initialize_params {
-      image = var.gce_boot_image
+    containers {
+      image = var.openfga_image
+      ports {
+        container_port = 8080 # OpenFGA default HTTP port. Adjust if your image uses a different one.
+        # Cloud Run will map its external port to this container port.
+      }
+
+      # Environment variables - each as a separate block
+      env {
+        name  = "OPENFGA_DATASTORE_ENGINE"
+        value = "postgres"
+      }
+      env {
+        name = "OPENFGA_DATASTORE_URI"
+        # The Cloud SQL socket will be at /cloudsql/INSTANCE_CONNECTION_NAME
+        # Adding sslmode=disable is often necessary for Unix socket connections to PostgreSQL.
+        value = "postgres:///postgres?host=/cloudsql/${google_sql_database_instance.main.connection_name}&sslmode=disable"
+      }
+      env {
+        name  = "OPENFGA_DATASTORE_USERNAME"
+        value = google_sql_user.openfga_user.name
+      }
+      env {
+        name = "OPENFGA_DATASTORE_PASSWORD" # This variable will be substituted in OPENFGA_DATASTORE_URI
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.db_password_secret.secret_id # Short name of the secret
+            version = "latest"                                                  # Or specific version: google_secret_manager_secret_version.db_password_secret_version.version
+          }
+        }
+      }
+      env {
+        name  = "OPENFGA_HTTP_ADDR"
+        value = ":8080"
+      }
+      env {
+        name  = "OPENFGA_GRPC_ADDR"
+        value = ":8081"
+      }
+      env {
+        name  = "OPENFGA_PLAYGROUND_ENABLED"
+        value = var.enable_openfga_playground ? "true" : "false"
+      }
+      env {
+        name  = "OPENFGA_LOG_FORMAT" # Recommended for Cloud Logging
+        value = "json"
+      }
+      env {
+        name  = "OPENFGA_AUTHN_METHOD" # For no auth. Use "preshared" for preshared key auth.
+        value = "none"
+      }
+      # If your OpenFGA image expects the $PORT environment variable from Cloud Run,
+      # you can set OPENFGA_HTTP_ADDR to ":$PORT" or ensure OpenFGA reads $PORT.
+      # However, OpenFGA typically uses its own config flags/env vars like OPENFGA_HTTP_ADDR.
+      # env {
+      #   name = "PORT"
+      #   value = "8080" # This is informational if OpenFGA doesn't directly use $PORT
+      # }
+
+      # Mount the Cloud SQL volume
+      volume_mounts {
+        name       = "cloudsql"  # Must match the volume name defined above
+        mount_path = "/cloudsql" # Standard directory where sockets are placed
+      }
+
+      # Optional: Configure probes for health checking
+      startup_probe {
+        initial_delay_seconds = 10 # Give OpenFGA time to start and run migrations
+        period_seconds        = 10
+        timeout_seconds       = 5
+        failure_threshold     = 3
+        http_get {
+          path = "/healthz" # OpenFGA health check endpoint
+          port = 8080       # Port inside the container
+        }
+      }
+      liveness_probe {
+        period_seconds    = 15
+        timeout_seconds   = 5
+        failure_threshold = 3
+        http_get {
+          path = "/healthz"
+          port = 8080
+        }
+      }
+      # command = ["printenv"]
+      args = ["run"]
+
+      # Optional: Define resource requests and limits
+      # resources {
+      #   limits = {
+      #     cpu    = "1000m" # 1 vCPU
+      #     memory = "512Mi"
+      #   }
+      #   # requests = {
+      #   #   cpu    = "250m"
+      #   #   memory = "256Mi"
+      #   # }
+      # }
     }
   }
 
-  network_interface {
-    network = "default" # Use default VPC network
-    access_config {
-      // Ephemeral public IP will be assigned
-    }
+  # Automatically route 100% traffic to the latest revision
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
   }
-
-  service_account {
-    email  = google_service_account.gce_sa.email
-    scopes = ["cloud-platform"] # Allows the SA to use its granted IAM roles
-  }
-
-  metadata = {
-    # Information passed to the startup script
-    db_user                       = google_sql_user.openfga_user.name
-    db_name                       = google_sql_database.openfga_db.name
-    db_instance_connection_name   = google_sql_database_instance.main.connection_name
-    db_password_secret_name       = google_secret_manager_secret.db_password_secret.secret_id # Short name
-    db_password_secret_project_id = google_secret_manager_secret.db_password_secret.project
-    db_password_secret_version    = google_secret_manager_secret_version.db_password_secret_version.version # Specific version
-    openfga_image_name            = var.openfga_image
-    openfga_playground_setting    = var.enable_openfga_playground ? "true" : "false"
-    openfga_log_level             = "info" # or "debug"
-  }
-
-  metadata_startup_script = file("./startup_script.sh")
-
-  allow_stopping_for_update = true # Useful for updating instance template without recreation
 
   depends_on = [
-    google_project_service.compute_api,
+    google_project_service.run_api,
     google_sql_database_instance.main,
     google_sql_user.openfga_user,
     google_secret_manager_secret_version.db_password_secret_version,
-    google_service_account.gce_sa,
-    google_project_iam_member.gce_sa_sql_client,
-    google_secret_manager_secret_iam_member.gce_sa_db_password_accessor
+    google_cloud_run_v2_job.openfga_run_migrations,
   ]
 }
 
-# Firewall Rules
-resource "google_compute_firewall" "allow_ssh" {
-  project = var.project_id
-  name    = "openfga-allow-ssh"
-  network = "default" # Or your custom VPC network
-  allow {
-    protocol = "tcp"
-    ports    = ["22"]
-  }
-  source_ranges = ["0.0.0.0/0"]      # WARNING: For production, restrict to known IPs
-  target_tags   = ["openfga-server"] # Applied to the GCE instance
-}
-
-resource "google_compute_firewall" "allow_openfga_http" {
-  project = var.project_id
-  name    = "openfga-allow-http-8080"
-  network = "default"
-  allow {
-    protocol = "tcp"
-    ports    = ["8080"] # OpenFGA HTTP API
-  }
-  source_ranges = ["0.0.0.0/0"] # Allow from anywhere
-  target_tags   = ["allow-http", "openfga-server"]
-}
-
-resource "google_compute_firewall" "allow_openfga_grpc" {
-  project = var.project_id
-  name    = "openfga-allow-grpc-8081"
-  network = "default"
-  allow {
-    protocol = "tcp"
-    ports    = ["8081"] # OpenFGA gRPC API
-  }
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["allow-grpc", "openfga-server"]
-}
-
-resource "google_compute_firewall" "allow_openfga_playground" {
-  project = var.project_id
-  name    = "openfga-allow-playground-3000"
-  network = "default"
-  allow {
-    protocol = "tcp"
-    ports    = ["3000"] # OpenFGA Playground
-  }
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["allow-playground", "openfga-server"]
-  # Only create this firewall rule if playground is enabled
-  count = var.enable_openfga_playground ? 1 : 0
+# Output the URL of the Cloud Run service
+output "openfga_service_url" {
+  description = "URL of the deployed OpenFGA Cloud Run service."
+  value       = google_cloud_run_v2_service.openfga_service.uri
 }

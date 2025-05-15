@@ -2,8 +2,8 @@
 
 # type: ignore[reportCallIssue]
 
-from collections.abc import AsyncGenerator
 import json
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import override
 
@@ -117,13 +117,13 @@ class _FilterAgent(BaseAgent):
 
         path_2_content: dict[str, str] = json.loads(content.text)
         filtered_path_2_content = {}
-        for file_path_str, content in path_2_content.items():
+        for file_path_str, file_content in path_2_content.items():
             file_path = Path(file_path_str)
             file_name = file_path.name
             logger.info("Checking if user {} can read file {}", user_id, file_name)
             if await can_user_read(user_id, file_name, self.ofga_client):
                 logger.info("He/she can read file {}", file_name)
-                filtered_path_2_content[str(file_path.absolute())] = content
+                filtered_path_2_content[str(file_path.absolute())] = file_content
 
         await artifact_service.save_artifact(
             app_name=ctx.app_name,
