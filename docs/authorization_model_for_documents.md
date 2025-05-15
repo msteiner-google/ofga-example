@@ -1,8 +1,13 @@
-Okay, let's break down this OpenFGA model.
-
-## OpenFGA Model Description
+## OpenFGA Model Description for documents.
 
 This OpenFGA model defines a simple authorization system for accessing documents (`doc`) based on users (`user`) and groups (`group`).
+
+This is not a comprehensive setup that cover all possible corner cases, but
+it does provide a good basis to build upon. The most notable missing functionalities are:
+
+1. [Blocklists](https://openfga.dev/docs/modeling/blocklists) - When you can forbid groups or individuals to access a document even though they would have read access (either directly or through groups).
+2. [Conditions](https://openfga.dev/docs/modeling/conditions) - Access with conditions, like granting access temporarily to something.
+3. Document collections - When instead of giving access to every single document to a user you group them in _collections_ and grant access to the collection instead (somewhat like gDrive folders).
 
 **Key Components:**
 
