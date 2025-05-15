@@ -57,7 +57,7 @@ def _main() -> None:
 
     config = injector.get(GeneralConfiguration)
     auth_model = injector.get(OFGASecurityModel)
-    write_auth_response = asyncio.run(write_authorization_id(config, auth_model))
+    write_auth_response = write_authorization_id(config, auth_model)
     config.store_configuration.authorization_model_id = (
         write_auth_response.authorization_model_id
     )

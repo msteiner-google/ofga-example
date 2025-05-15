@@ -1,6 +1,6 @@
 {
   "server_configuration": {
-    "api_url": "http://34.79.138.32:8080"
+    "api_url": "https://openfga-server-7h5jcgk6vq-ez.a.run.app"
   },
   "store_configuration": {
     "store_name": "document_store",

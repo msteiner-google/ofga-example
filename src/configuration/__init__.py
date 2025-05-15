@@ -4,13 +4,21 @@ import asyncio
 import json
 from typing import TYPE_CHECKING, cast
 
+import google.auth
+import google.auth.transport.requests
+from google.oauth2 import id_token
 from injector import (
     Module,
     multiprovider,
     provider,
     singleton,
 )
-from openfga_sdk import ClientConfiguration, OpenFgaClient
+from loguru import logger
+from openfga_sdk import (
+    ClientConfiguration,
+    OpenFgaClient,
+)
+from openfga_sdk.credentials import CredentialConfiguration, Credentials
 from pydantic import ValidationError
 
 from src.configuration.configuration_model import (
@@ -19,6 +27,7 @@ from src.configuration.configuration_model import (
     OFGAStoreConfiguration,
 )
 from src.ofga_operations.store import get_or_create_store
+from src.ofga_operations.utils import get_client
 from src.project_types import (
     OFGASecurityModel,
     SerializedConfigurationMapping,
@@ -63,7 +72,8 @@ class ConfigurationModule(Module):
             return model
         if not model.store_configuration.store_id:
             response = cast(
-                "CreateStoreResponse", asyncio.run(get_or_create_store(model))
+                "CreateStoreResponse",
+                get_or_create_store(model),
             )
             model.store_configuration.store_id = response.id
 
@@ -86,15 +96,9 @@ class ConfigurationModule(Module):
     @provider
     def _provide_ofga_api_client(  # noqa: PLR6301
         self,
-        server_configuration: OFGAServerConfiguration,
-        store_configuration: OFGAStoreConfiguration,
+        config: GeneralConfiguration,
     ) -> OpenFgaClient:
-        client_configuration = ClientConfiguration(
-            api_url=server_configuration.api_url,
-            store_id=store_configuration.store_id,
-            authorization_model_id=store_configuration.authorization_model_id,
-        )
-        return OpenFgaClient(client_configuration)
+        return get_client(config)
 
     @singleton
     @provider
