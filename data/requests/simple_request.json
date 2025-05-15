@@ -1,4 +1,4 @@
 {
-  "body": "Test request.",
-  "user_id": "alice"
+  "body": "What are my todos? Please rank them in decreasing order of importance and categorize them based on who has to do them.",
+  "user_id": "bob"
 }

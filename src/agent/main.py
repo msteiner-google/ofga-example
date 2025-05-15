@@ -16,7 +16,13 @@ from google.genai import types
 from injector import Binder, Injector, SingletonScope
 from loguru import logger
 
-from src.agent.custom_types import AgentName, AppName, CustomAgentState, Message
+from src.agent.custom_types import (
+    AgentName,
+    AppName,
+    CustomAgentState,
+    GeminiModel,
+    Message,
+)
 from src.agent.di import AgentModule
 from src.configuration import ConfigurationModule
 from src.project_types import SerializedConfigurationPath, ShouldResolveMissingValues
@@ -39,6 +45,12 @@ parser.add_argument(
     default="test_ofga_agent",
     help="Name of the agent.",
 )
+parser.add_argument(
+    "--model_version",
+    type=str,
+    default="gemini-2.0-flash-001",
+    help="Gemini version to use.",
+)
 args = parser.parse_args()
 
 
@@ -52,6 +64,7 @@ def _bind_flags(binder: Binder) -> None:
         to=ShouldResolveMissingValues.YES,
         scope=SingletonScope,
     )
+    binder.bind(GeminiModel, to=GeminiModel(args.model_version), scope=SingletonScope)
     binder.bind(AppName, to=AppName(args.app_name), scope=SingletonScope)
     binder.bind(AgentName, to=AgentName(args.agent_name), scope=SingletonScope)
 
@@ -62,7 +75,11 @@ attach_injector(app, inj)
 
 
 def get_or_create_session(
-    user_id: str, session_id: str, app_name: str, session_service: BaseSessionService
+    user_id: str,
+    session_id: str,
+    app_name: str,
+    session_service: BaseSessionService,
+    user_content: types.Content | None = None,
 ) -> Session:
     """Get's or create a session."""
     maybe_session = session_service.get_session(
@@ -76,7 +93,12 @@ def get_or_create_session(
         app_name=app_name,
         user_id=user_id,
         session_id=session_id,
-        state=CustomAgentState().model_dump(),
+        state={
+            "last_question": user_content.parts[0].text
+            if user_content and user_content.parts and user_content.parts[0].text
+            else "",
+            "previous_conversation": [],
+        },
     )
 
 
@@ -88,35 +110,29 @@ async def new_message(
     runner: Runner = Injected(Runner),  # noqa: B008
 ) -> dict[str, Any]:
     """New message endpoint."""
+    content = types.Content(role="user", parts=[types.Part(text=message.body)])
     session = get_or_create_session(
         user_id=message.user_id,
         app_name=app_name,
         session_id=message.session_id,
         session_service=session_service,
+        user_content=content,
     )
-    content = types.Content(role="user", parts=[types.Part(text=message.body)])
     events = runner.run_async(
         user_id=session.user_id, session_id=session.id, new_message=content
     )
     final_response = "No final response captured."
     async for event in events:
-        if event.is_final_response() and event.content and event.content.parts:
+        if (
+            event
+            and event.is_final_response()
+            and event.content
+            and event.content.parts
+            and event.content.parts[0].text
+        ):
             final_response = event.content.parts[0].text
 
-    logger.info("--- Agent Interaction Result ---")
-    logger.info("Agent Final Response: {}", final_response)
-
-    final_session = get_or_create_session(
-        app_name=app_name,
-        user_id=message.user_id,
-        session_id=message.session_id,
-        session_service=session_service,
-    )
-    logger.info("Final Session State:")
-
-    logger.info(json.dumps(final_session.state, indent=2))
-    logger.info("-------------------------------\n")
-    return message.model_dump()
+    return {"answer": final_response}
 
 
 def entrypoint() -> None:

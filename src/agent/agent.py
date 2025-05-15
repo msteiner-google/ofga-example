@@ -1,13 +1,11 @@
 """Actual agent implementation."""
 
-# type: ignore[reportCallIssue]
-
 import json
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import override
 
-from google.adk.agents import BaseAgent
+from google.adk.agents import BaseAgent, LlmAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events import Event, EventActions
 from google.genai import types
@@ -17,7 +15,9 @@ from openfga_sdk import OpenFgaClient
 
 from src.agent.custom_types import (
     AgentName,
+    AnsweringAgent,
     DocumentListArtifactKey,
+    RetrieveContextKey,
     RowListArtifactKey,
 )
 from src.ofga_operations.checks import can_user_read
@@ -36,7 +36,7 @@ class _RetrievalAgent(BaseAgent):
         rows_artifact_key: RowListArtifactKey,
     ) -> None:
         """Init method."""
-        super().__init__(
+        super().__init__(  # type: ignore
             name="retrieval_agent",
             documents_artifact_key=documents_artifact_key,
             rows_artifact_key=rows_artifact_key,
@@ -49,7 +49,7 @@ class _RetrievalAgent(BaseAgent):
         if not ctx.artifact_service:
             raise RuntimeError()
 
-        # TODO: pass this as part of the configuration.
+        # Files are under the "data" folder. This is just for demo purposes.
         path = Path("data")
         document_path = path / "documents"
 
@@ -59,7 +59,7 @@ class _RetrievalAgent(BaseAgent):
             with p.open("r") as f:
                 content = f.read()
                 logger.debug("Retrieving {}. Length {}", p, len(content))
-                path_2_contents[str(p.absolute())] = f.read()
+                path_2_contents[str(p.absolute())] = content
 
         await ctx.artifact_service.save_artifact(
             app_name=ctx.app_name,
@@ -81,6 +81,7 @@ class _FilterAgent(BaseAgent):
     ofga_client: OpenFgaClient
     documents_artifact_key: DocumentListArtifactKey
     rows_artifact_key: RowListArtifactKey
+    retrieved_context_key: RetrieveContextKey
 
     @inject
     def __init__(
@@ -88,6 +89,7 @@ class _FilterAgent(BaseAgent):
         openfga_client: OpenFgaClient,
         documents_artifact_key: DocumentListArtifactKey,
         rows_artifact_key: RowListArtifactKey,
+        retrieved_context_key: RetrieveContextKey,
     ) -> None:
         """Init method."""
         super().__init__(  # type: ignore
@@ -95,6 +97,7 @@ class _FilterAgent(BaseAgent):
             ofga_client=openfga_client,
             documents_artifact_key=documents_artifact_key,
             rows_artifact_key=rows_artifact_key,
+            retrieved_context_key=retrieved_context_key,
         )
 
     @override
@@ -124,12 +127,12 @@ class _FilterAgent(BaseAgent):
             if await can_user_read(user_id, file_name, self.ofga_client):
                 logger.info("He/she can read file {}", file_name)
                 filtered_path_2_content[str(file_path.absolute())] = file_content
-
+        logger.info(filtered_path_2_content)
         await artifact_service.save_artifact(
             app_name=ctx.app_name,
             session_id=ctx.session.id,
             user_id=ctx.session.user_id,
-            filename=self.documents_artifact_key,
+            filename=self.retrieved_context_key,
             artifact=types.Part(text=json.dumps(filtered_path_2_content)),
         )
 
@@ -144,25 +147,31 @@ class OFGATestAgent(BaseAgent):
 
     retrieval_agent: _RetrievalAgent
     filter_agent: _FilterAgent
+    answering_agent: AnsweringAgent
     documents_artifact_key: DocumentListArtifactKey
     rows_artifact_key: RowListArtifactKey
+    retrieved_context_key: RetrieveContextKey
 
     @inject
-    def __init__(
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         name: AgentName,
         retrieval_agent: _RetrievalAgent,
         filter_agent: _FilterAgent,
+        answering_agent: AnsweringAgent,
         documents_artifact_key: DocumentListArtifactKey,
         rows_artifact_key: RowListArtifactKey,
+        retrieved_context_key: RetrieveContextKey,
     ) -> None:
         """Init method."""
-        super().__init__(
+        super().__init__(  # type: ignore
             name=name,
             filter_agent=filter_agent,
             retrieval_agent=retrieval_agent,
+            answering_agent=answering_agent,
             documents_artifact_key=documents_artifact_key,
             rows_artifact_key=rows_artifact_key,
+            retrieved_context_key=retrieved_context_key,
         )
 
     @override
@@ -170,7 +179,6 @@ class OFGATestAgent(BaseAgent):
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
         logger.debug("Inside agent body.")
-
         data_retrieved_successfully: bool = False
         async for event in self.retrieval_agent.run_async(ctx):
             event_metadata = event.custom_metadata
@@ -186,11 +194,14 @@ class OFGATestAgent(BaseAgent):
 
         async for event in self.filter_agent.run_async(ctx):
             event_metadata = event.custom_metadata
-            if event_metadata:
-                logger.debug("Event has metadata")
-                if event_metadata["filtered_files"] and not event_metadata["has_error"]:
-                    logger.info("Data successfully filtered.")
+            if (
+                event_metadata
+                and "filtered_files" in event_metadata
+                and event_metadata["filtered_files"]
+                and "has_error" in event_metadata
+                and not event_metadata["has_error"]
+            ):
+                logger.info("Data successfully filtered.")
 
-        yield Event(
-            author="agent", content=types.Content(parts=[types.Part(text="ran")])
-        )
+        async for event in self.answering_agent.run_async(ctx):
+            yield event

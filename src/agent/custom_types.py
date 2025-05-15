@@ -1,5 +1,6 @@
 """Custom types for the agent."""
 
+from google.adk.agents import LlmAgent
 from google.genai import types
 from typing import NewType
 from pydantic import BaseModel, Field
@@ -25,3 +26,6 @@ AppName = NewType("AppName", str)
 AgentName = NewType("AgentName", str)
 DocumentListArtifactKey = NewType("DocumentListArtifactKey", str)
 RowListArtifactKey = NewType("RowListArtifactKey", str)
+RetrieveContextKey = NewType("RetrieveContextKey", str)
+GeminiModel = NewType("GeminiModel", str)
+AnsweringAgent = NewType("AnsweringAgent", LlmAgent)
