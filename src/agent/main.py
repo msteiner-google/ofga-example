@@ -1,8 +1,5 @@
 """Entrypoint."""
 
-# TODO: Create subagents for both the retrieval and the filtering through OFGA.
-
-import json
 from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any
@@ -19,7 +16,6 @@ from loguru import logger
 from src.agent.custom_types import (
     AgentName,
     AppName,
-    CustomAgentState,
     GeminiModel,
     Message,
 )
@@ -106,7 +102,7 @@ def get_or_create_session(
 async def new_message(
     message: Message,
     app_name: AppName = Injected(AppName),  # noqa: B008
-    session_service: BaseSessionService = Injected(BaseSessionService),  # noqa: B008
+    session_service: BaseSessionService = Injected(BaseSessionService),  # type: ignore  # noqa: B008
     runner: Runner = Injected(Runner),  # noqa: B008
 ) -> dict[str, Any]:
     """New message endpoint."""

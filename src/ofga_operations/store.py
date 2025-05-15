@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, cast
 
 import openfga_sdk
 from loguru import logger
-from openfga_sdk.client import OpenFgaClient
 from openfga_sdk.models.create_store_request import CreateStoreRequest
 from openfga_sdk.models.create_store_response import CreateStoreResponse
 from openfga_sdk.models.write_authorization_model_request import (

@@ -30,10 +30,11 @@ def get_gcp_id_token(audience_url: str) -> str | None:
         logger.exception("Error fetching ID token for {}", audience_url)
         raise
     else:
-        return token
+        return token  # type: ignore
 
 
 def get_client(config: GeneralConfiguration) -> OpenFgaClient:
+    """Gets an open-fga client."""
     gcp_id_token = get_gcp_id_token(config.server_configuration.api_url)
     fga_credentials = Credentials(
         method="api_token",  # This tells the SDK to use a bearer token

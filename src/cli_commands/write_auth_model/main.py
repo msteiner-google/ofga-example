@@ -1,6 +1,5 @@
 """Main for creating a store."""
 
-import asyncio
 from argparse import ArgumentParser
 from pathlib import Path
 

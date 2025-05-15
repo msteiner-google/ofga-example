@@ -1,10 +1,12 @@
 """Methods to perform checks."""
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from openfga_sdk import OpenFgaClient
 from openfga_sdk.client import ClientCheckRequest
-from openfga_sdk.models.check_response import CheckResponse
+
+if TYPE_CHECKING:
+    from openfga_sdk.models.check_response import CheckResponse
 
 
 async def can_user_read(user_id: str, document_id: str, client: OpenFgaClient) -> bool:

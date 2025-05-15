@@ -1,8 +1,9 @@
 """Custom types for the agent."""
 
+from typing import NewType
+
 from google.adk.agents import LlmAgent
 from google.genai import types
-from typing import NewType
 from pydantic import BaseModel, Field
 from uuid_extensions import uuid7str
 

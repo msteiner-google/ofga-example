@@ -5,9 +5,9 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import override
 
-from google.adk.agents import BaseAgent, LlmAgent
+from google.adk.agents import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
-from google.adk.events import Event, EventActions
+from google.adk.events import Event
 from google.genai import types
 from injector import inject
 from loguru import logger

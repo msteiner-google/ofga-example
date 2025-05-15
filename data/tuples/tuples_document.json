@@ -1,7 +1,7 @@
 {
   "tuples": [
     {
-      "friendly_name": "doc_publuc_is_public",
+      "friendly_name": "doc_public_is_public",
       "relation_body": "user:* viewer doc:public_doc.txt"
     },
     {

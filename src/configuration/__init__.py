@@ -1,24 +1,17 @@
 """Configuration module."""
 
-import asyncio
 import json
 from typing import TYPE_CHECKING, cast
 
-import google.auth
-import google.auth.transport.requests
-from google.oauth2 import id_token
 from injector import (
     Module,
     multiprovider,
     provider,
     singleton,
 )
-from loguru import logger
 from openfga_sdk import (
-    ClientConfiguration,
     OpenFgaClient,
 )
-from openfga_sdk.credentials import CredentialConfiguration, Credentials
 from pydantic import ValidationError
 
 from src.configuration.configuration_model import (
