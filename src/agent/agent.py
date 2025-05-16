@@ -3,7 +3,6 @@
 import json
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import override
 
 from google.adk.agents import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
@@ -36,13 +35,12 @@ class _RetrievalAgent(BaseAgent):
         rows_artifact_key: RowListArtifactKey,
     ) -> None:
         """Init method."""
-        super().__init__(  # type: ignore
+        super().__init__(
             name="retrieval_agent",
             documents_artifact_key=documents_artifact_key,
             rows_artifact_key=rows_artifact_key,
         )
 
-    @override
     async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
@@ -92,7 +90,7 @@ class _FilterAgent(BaseAgent):
         retrieved_context_key: RetrieveContextKey,
     ) -> None:
         """Init method."""
-        super().__init__(  # type: ignore
+        super().__init__(
             name="filter_agent",
             ofga_client=openfga_client,
             documents_artifact_key=documents_artifact_key,
@@ -100,7 +98,6 @@ class _FilterAgent(BaseAgent):
             retrieved_context_key=retrieved_context_key,
         )
 
-    @override
     async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
@@ -164,7 +161,7 @@ class OFGATestAgent(BaseAgent):
         retrieved_context_key: RetrieveContextKey,
     ) -> None:
         """Init method."""
-        super().__init__(  # type: ignore
+        super().__init__(
             name=name,
             filter_agent=filter_agent,
             retrieval_agent=retrieval_agent,
@@ -174,7 +171,6 @@ class OFGATestAgent(BaseAgent):
             retrieved_context_key=retrieved_context_key,
         )
 
-    @override
     async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:

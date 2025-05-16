@@ -29,4 +29,4 @@ DocumentListArtifactKey = NewType("DocumentListArtifactKey", str)
 RowListArtifactKey = NewType("RowListArtifactKey", str)
 RetrieveContextKey = NewType("RetrieveContextKey", str)
 GeminiModel = NewType("GeminiModel", str)
-AnsweringAgent = NewType("AnsweringAgent", LlmAgent)
+AnsweringAgent = NewType("AnsweringAgent", LlmAgent)  # type: ignore

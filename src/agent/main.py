@@ -102,7 +102,7 @@ def get_or_create_session(
 async def new_message(
     message: Message,
     app_name: AppName = Injected(AppName),  # noqa: B008
-    session_service: BaseSessionService = Injected(BaseSessionService),  # type: ignore  # noqa: B008
+    session_service: BaseSessionService = Injected(BaseSessionService),  # noqa: B008
     runner: Runner = Injected(Runner),  # noqa: B008
 ) -> dict[str, Any]:
     """New message endpoint."""
