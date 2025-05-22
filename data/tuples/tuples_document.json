@@ -18,7 +18,29 @@
         "relation_body": "group:group_b#member reader item:document_group_b.txt"
       }
     ],
-    "table_store_default_allow": [],
-    "table_store_default_deny": []
+    "table_store_default_allow": [
+      {
+        "friendly_name": "bob can't see open quarter data",
+        "relation_body": "user:bob excluded item:2025q2"
+      }
+    ],
+    "table_store_default_deny": [
+      {
+        "friendly_name": "alice can see her rating",
+        "relation_body": "user:alice reader item:alice_rating"
+      },
+      {
+        "friendly_name": "alice can see her reportee rating",
+        "relation_body": "user:alice reader item:alice_reportee_rating"
+      },
+      {
+        "friendly_name": "bob can see his rating",
+        "relation_body": "user:bob reader item:bob_rating"
+      },
+      {
+        "friendly_name": "chris can see his rating",
+        "relation_body": "user:chris reader item:chris_rating"
+      }
+    ]
   }
 }

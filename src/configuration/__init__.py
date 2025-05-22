@@ -9,6 +9,7 @@ from injector import (
     provider,
     singleton,
 )
+from loguru import logger
 from openfga_sdk import (
     OpenFgaClient,
 )
@@ -82,7 +83,16 @@ class ConfigurationModule(Module):
         self,
         config: GeneralConfiguration,
     ) -> OpenFgaClient:
-        return get_client(config)
+        logger.warning("Getting a generic client, i.e. not specialized for a store.")
+        return get_client(config, maybe_store_conf=None)
+
+    @multiprovider
+    def _provide_ofga_api_clients_for_each_store(  # noqa: PLR6301
+        self,
+        config: GeneralConfiguration,
+    ) -> dict[str, OpenFgaClient]:
+        store_keys = GeneralConfiguration.get_store_configurations()
+        return {key: get_client(config, getattr(config, key)) for key in store_keys}
 
     @singleton
     @multiprovider

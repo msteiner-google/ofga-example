@@ -12,6 +12,7 @@ from openfga_sdk.credentials import CredentialConfiguration, Credentials
 
 from src.configuration.configuration_model import (
     GeneralConfiguration,
+    OFGAStoreConfiguration,
 )
 
 
@@ -33,7 +34,9 @@ def get_gcp_id_token(audience_url: str) -> str | None:
         return token  # type: ignore
 
 
-def get_client(config: GeneralConfiguration) -> OpenFgaClient:
+def get_client(
+    config: GeneralConfiguration, maybe_store_conf: OFGAStoreConfiguration | None
+) -> OpenFgaClient:
     """Gets an open-fga client."""
     gcp_id_token = get_gcp_id_token(config.server_configuration.api_url)
     fga_credentials = Credentials(
@@ -44,8 +47,10 @@ def get_client(config: GeneralConfiguration) -> OpenFgaClient:
     )
     client_configuration = ClientConfiguration(
         api_url=config.server_configuration.api_url,
-        store_id=config.store_for_documents_configuration.store_id,
-        authorization_model_id=config.store_for_documents_configuration.authorization_model_id,
+        store_id=maybe_store_conf.store_id if maybe_store_conf else None,
+        authorization_model_id=maybe_store_conf.authorization_model_id
+        if maybe_store_conf
+        else None,
         credentials=fga_credentials,
     )
     return OpenFgaClient(client_configuration)

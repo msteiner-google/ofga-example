@@ -86,6 +86,15 @@ class GeneralConfiguration(BaseModel):
 
         return found_fields
 
+    def get_store_key_by_name(self, store_name: str) -> str:
+        """Given a store name retrieve the dictionary key used."""
+        available_stores = GeneralConfiguration.get_store_configurations()
+        for store_dict_key in available_stores:
+            store: OFGAStoreConfiguration = getattr(self, store_dict_key)
+            if store.store_name == store_name:
+                return store_dict_key
+        raise RuntimeError("Store key not found")  # noqa: TRY003
+
     def get_store_configuration_by_store_name(
         self, store_name: str
     ) -> OFGAStoreConfiguration:

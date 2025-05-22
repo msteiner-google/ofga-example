@@ -51,17 +51,24 @@ async def _main() -> None:
     injector = Injector(modules=[_bind_flags, ConfigurationModule])
 
     config = injector.get(GeneralConfiguration)
-    client = injector.get(OpenFgaClient)
+    clients = injector.get(dict[str, OpenFgaClient])
 
-    store_to_auth_model = injector.get(dict[str, OFGASecurityModel])
-    for dict_key, auth_model in store_to_auth_model.items():
-        store_config: OFGAStoreConfiguration = getattr(config, dict_key)
-        write_auth_response = await write_authorization_id(auth_model, client)
-        store_config.authorization_model_id = write_auth_response.authorization_model_id
+    try:
+        store_to_auth_model = injector.get(dict[str, OFGASecurityModel])
+        for dict_key, auth_model in store_to_auth_model.items():
+            client = clients[dict_key]
+            store_config: OFGAStoreConfiguration = getattr(config, dict_key)
+            write_auth_response = await write_authorization_id(auth_model, client)
+            store_config.authorization_model_id = (
+                write_auth_response.authorization_model_id
+            )
 
-    with Path(args.save_configuration_path).open("w", encoding="utf-8") as f:
-        f.write(config.model_dump_json(indent=4))
-    logger.info("config: {}", config)
+        with Path(args.save_configuration_path).open("w", encoding="utf-8") as f:
+            f.write(config.model_dump_json(indent=4))
+        logger.info("config: {}", config)
+    finally:
+        for client in clients.values():
+            await client.close()
 
 
 def entrypoint() -> None:

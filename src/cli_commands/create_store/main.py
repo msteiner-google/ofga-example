@@ -1,7 +1,7 @@
 """Main for creating a store."""
 
-from argparse import ArgumentParser
 import asyncio
+from argparse import ArgumentParser
 from pathlib import Path
 
 from injector import Binder, Injector, SingletonScope

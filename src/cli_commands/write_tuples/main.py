@@ -53,11 +53,13 @@ async def _main() -> None:
         args.tuples_document, model=TupleCollection
     )
     injector = Injector(modules=[_bind_flags, ConfigurationModule])
-    client = injector.get(OpenFgaClient)
+    clients = injector.get(dict[str, OpenFgaClient])
     config = injector.get(GeneralConfiguration)
 
     try:
         for store_name, tuple_list in tuples.store_to_tuples.items():
+            dict_key = config.get_store_key_by_name(store_name)
+            client = clients[dict_key]
             store_configuration = config.get_store_configuration_by_store_name(
                 store_name
             )
@@ -93,7 +95,8 @@ async def _main() -> None:
         logger.error("{}", e)
         logger.exception("Error inserting tuples into store.")
     finally:
-        await client.close()
+        for client in clients.values():
+            await client.close()
 
 
 def entrypoint() -> None:
