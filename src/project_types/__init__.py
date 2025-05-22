@@ -1,7 +1,7 @@
 """Module containing the types used for the project."""
 
 from collections.abc import Mapping
-from enum import StrEnum
+from enum import Enum, StrEnum
 from pathlib import Path
 from typing import NewType
 
@@ -27,3 +27,18 @@ class ShouldSaveUpdatedConfiguration(StrEnum):
 
     YES = "YES"
     NO = "NO"
+
+
+class ACLType(StrEnum):
+    """The ACL type for a given store.
+
+    *DEFAULT_DENY* means that the the presence of a connection between subjcet and
+        object signifies that the subject CAN perform the relation to the object. The
+        absence means that it can not.
+    *DEFAULT_ALLOW_WITH_EXPLICIT_DENY* is the opposite, subjects default to be able to
+        perform the relation to the corresponing object when nothing is specified. The
+        presence of a connection means they can not.
+    """
+
+    DEFAULT_DENY = "DEFAULT_DENY"
+    DEFAULT_ALLOW_WITH_EXPLICIT_DENY = "DEFAULT_ALLOW_WITH_EXPLICIT_DENY"

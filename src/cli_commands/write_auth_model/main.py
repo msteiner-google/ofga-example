@@ -57,7 +57,7 @@ def _main() -> None:
     config = injector.get(GeneralConfiguration)
     auth_model = injector.get(OFGASecurityModel)
     write_auth_response = write_authorization_id(config, auth_model)
-    config.store_configuration.authorization_model_id = (
+    config.store_for_documents_configuration.authorization_model_id = (
         write_auth_response.authorization_model_id
     )
     if args.save_updated_configuration == ShouldSaveUpdatedConfiguration.YES:

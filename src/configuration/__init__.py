@@ -63,12 +63,12 @@ class ConfigurationModule(Module):
         model: GeneralConfiguration = GeneralConfiguration.model_validate(mapping)
         if should_resolve_missing_values == ShouldResolveMissingValues.NO:
             return model
-        if not model.store_configuration.store_id:
+        if not model.store_for_documents_configuration.store_id:
             response = cast(
                 "CreateStoreResponse",
                 get_or_create_store(model),
             )
-            model.store_configuration.store_id = response.id
+            model.store_for_documents_configuration.store_id = response.id
 
         return model
 
@@ -77,7 +77,7 @@ class ConfigurationModule(Module):
     def _provide_store_configuration(  # noqa: PLR6301
         self, general_configuration: GeneralConfiguration
     ) -> OFGAStoreConfiguration:
-        return general_configuration.store_configuration
+        return general_configuration.store_for_documents_configuration
 
     @singleton
     @provider

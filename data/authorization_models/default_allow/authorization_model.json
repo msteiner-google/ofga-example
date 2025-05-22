@@ -34,28 +34,24 @@
       }
     },
     {
-      "type": "doc",
+      "type": "item",
       "relations": {
-        "can_read": {
+        "cannot_read": {
           "computedUserset": {
-            "relation": "viewer"
+            "relation": "excluded"
           }
         },
-        "viewer": {
+        "excluded": {
           "this": {}
         }
       },
       "metadata": {
         "relations": {
-          "can_read": {
+          "cannot_read": {
             "directly_related_user_types": []
           },
-          "viewer": {
+          "excluded": {
             "directly_related_user_types": [
-              {
-                "type": "user",
-                "wildcard": {}
-              },
               {
                 "type": "user"
               },

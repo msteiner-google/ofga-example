@@ -2,8 +2,19 @@
   "server_configuration": {
     "api_url": "https://openfga-server-7h5jcgk6vq-ez.a.run.app"
   },
-  "store_configuration": {
+  "store_for_documents_configuration": {
     "store_name": "document_store",
-    "authorization_model_file": "data/authorization_models/authorization_model_document.json"
+    "authorization_model_file": "data/authorization_models/default_deny/authorization_model.json",
+    "acl_type": "DEFAULT_DENY"
+  },
+  "store_for_tables_with_default_deny": {
+    "store_name": "table_store_default_deny",
+    "authorization_model_file": "data/authorization_models/default_deny/authorization_model.json",
+    "acl_type": "DEFAULT_DENY"
+  },
+  "store_for_tables_with_default_allow": {
+    "store_name": "table_store_default_allow",
+    "authorization_model_file": "data/authorization_models/default_allow/authorization_model.json",
+    "acl_type": "DEFAULT_ALLOW_WITH_EXPLICIT_DENY"
   }
 }

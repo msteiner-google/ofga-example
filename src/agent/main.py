@@ -106,6 +106,7 @@ async def new_message(
     runner: Runner = Injected(Runner),  # noqa: B008
 ) -> dict[str, Any]:
     """New message endpoint."""
+    logger.info("Received new message")
     content = types.Content(role="user", parts=[types.Part(text=message.body)])
     session = get_or_create_session(
         user_id=message.user_id,

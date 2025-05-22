@@ -34,23 +34,23 @@
       }
     },
     {
-      "type": "row",
+      "type": "item",
       "relations": {
-        "cant_read": {
+        "can_read": {
           "computedUserset": {
-            "relation": "excluded"
+            "relation": "reader"
           }
         },
-        "excluded": {
+        "reader": {
           "this": {}
         }
       },
       "metadata": {
         "relations": {
-          "cant_read": {
+          "can_read": {
             "directly_related_user_types": []
           },
-          "excluded": {
+          "reader": {
             "directly_related_user_types": [
               {
                 "type": "user"

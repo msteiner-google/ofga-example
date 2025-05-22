@@ -44,8 +44,8 @@ def get_client(config: GeneralConfiguration) -> OpenFgaClient:
     )
     client_configuration = ClientConfiguration(
         api_url=config.server_configuration.api_url,
-        store_id=config.store_configuration.store_id,
-        authorization_model_id=config.store_configuration.authorization_model_id,
+        store_id=config.store_for_documents_configuration.store_id,
+        authorization_model_id=config.store_for_documents_configuration.authorization_model_id,
         credentials=fga_credentials,
     )
     return OpenFgaClient(client_configuration)

@@ -32,7 +32,9 @@ def get_or_create_store(configuration: GeneralConfiguration) -> CreateStoreRespo
     async def _helper() -> CreateStoreResponse:
         client = get_client(configuration)
         try:
-            body = CreateStoreRequest(name=configuration.store_configuration.store_name)
+            body = CreateStoreRequest(
+                name=configuration.store_for_documents_configuration.store_name
+            )
             response: CreateStoreResponse = cast(
                 "CreateStoreResponse", await client.create_store(body)
             )
