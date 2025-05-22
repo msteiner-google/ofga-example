@@ -58,19 +58,10 @@ class ConfigurationModule(Module):
     def _provide_general_configuration(  # noqa: PLR6301
         self,
         mapping: SerializedConfigurationMapping,
-        should_resolve_missing_values: ShouldResolveMissingValues,
     ) -> GeneralConfiguration:
-        model: GeneralConfiguration = GeneralConfiguration.model_validate(mapping)
-        if should_resolve_missing_values == ShouldResolveMissingValues.NO:
-            return model
-        if not model.store_for_documents_configuration.store_id:
-            response = cast(
-                "CreateStoreResponse",
-                get_or_create_store(model),
-            )
-            model.store_for_documents_configuration.store_id = response.id
-
-        return model
+        return cast(
+            "GeneralConfiguration", GeneralConfiguration.model_validate(mapping)
+        )
 
     @singleton
     @provider
@@ -94,11 +85,20 @@ class ConfigurationModule(Module):
         return get_client(config)
 
     @singleton
-    @provider
+    @multiprovider
     def _provide_authorization_model(  # noqa: PLR6301
-        self, configuration: OFGAStoreConfiguration
-    ) -> OFGASecurityModel:
-        if configuration.authorization_model_file is None:
-            raise ValidationError("Authorization model was not provided.")  # noqa: TRY003
-        mapping = load_json_from_file_path(configuration.authorization_model_file)
-        return OFGASecurityModel(mapping)
+        self, configuration: GeneralConfiguration
+    ) -> dict[str, OFGASecurityModel]:
+        store_configurations = GeneralConfiguration.get_store_configurations()
+        result = {}
+        for store_configuration_dict_key in store_configurations:
+            store_configuration: OFGAStoreConfiguration = getattr(
+                configuration, store_configuration_dict_key
+            )
+            if store_configuration.authorization_model_file is None:
+                raise ValidationError("Authorization model was not provided.")  # noqa: TRY003
+            mapping = load_json_from_file_path(
+                store_configuration.authorization_model_file
+            )
+            result[store_configuration_dict_key] = OFGASecurityModel(mapping)
+        return result

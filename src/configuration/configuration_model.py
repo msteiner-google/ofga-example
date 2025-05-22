@@ -1,5 +1,8 @@
 """Defines the configuration model."""
 
+import inspect
+from typing import Self
+
 from pydantic import BaseModel, Field
 
 from src.project_types import ACLType
@@ -59,3 +62,25 @@ class GeneralConfiguration(BaseModel):
     store_for_documents_configuration: OFGAStoreConfiguration
     store_for_tables_with_default_deny: OFGAStoreConfiguration
     store_for_tables_with_default_allow: OFGAStoreConfiguration
+
+    @staticmethod
+    def get_store_configurations() -> list[str]:
+        """Retrieves field names that are store configurations."""
+        model_cls = GeneralConfiguration
+        target_type = OFGAStoreConfiguration
+        found_fields = []
+
+        for field_name, field_info in model_cls.model_fields.items():
+            field_annotation = field_info.annotation
+
+            if inspect.isclass(field_annotation) and inspect.isclass(target_type):
+                try:
+                    if issubclass(field_annotation, target_type):
+                        found_fields.append(field_name)
+                        continue
+                except TypeError:
+                    # issubclass can raise TypeError if args
+                    # are not classes (e.g. typing constructs)
+                    pass
+
+        return found_fields

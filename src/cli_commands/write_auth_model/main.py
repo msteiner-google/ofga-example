@@ -1,37 +1,33 @@
 """Main for creating a store."""
 
+import asyncio
 from argparse import ArgumentParser
 from pathlib import Path
 
 from injector import Binder, Injector, SingletonScope
 from loguru import logger
+from openfga_sdk import OpenFgaClient
 
 from src.configuration import ConfigurationModule
-from src.configuration.configuration_model import GeneralConfiguration
+from src.configuration.configuration_model import (
+    GeneralConfiguration,
+    OFGAStoreConfiguration,
+)
 from src.ofga_operations.store import write_authorization_id
 from src.project_types import (
     OFGASecurityModel,
     SerializedConfigurationPath,
     ShouldResolveMissingValues,
-    ShouldSaveUpdatedConfiguration,
 )
 
 
-def _main() -> None:
+async def _main() -> None:
     parser = ArgumentParser()
     parser.add_argument(
         "--configuration",
         type=str,
         default=None,
         help="Path where to find the serialized (in JSON) configuration.",
-    )
-    parser.add_argument(
-        "--save_updated_configuration",
-        type=ShouldSaveUpdatedConfiguration,
-        choices=list(ShouldSaveUpdatedConfiguration),
-        required=False,
-        default="YES",
-        help="Specify whether to save the updated configuration.",
     )
     parser.add_argument(
         "--save_configuration_path",
@@ -55,17 +51,19 @@ def _main() -> None:
     injector = Injector(modules=[_bind_flags, ConfigurationModule])
 
     config = injector.get(GeneralConfiguration)
-    auth_model = injector.get(OFGASecurityModel)
-    write_auth_response = write_authorization_id(config, auth_model)
-    config.store_for_documents_configuration.authorization_model_id = (
-        write_auth_response.authorization_model_id
-    )
-    if args.save_updated_configuration == ShouldSaveUpdatedConfiguration.YES:
-        with Path(args.save_configuration_path).open("w", encoding="utf-8") as f:
-            f.write(config.model_dump_json(indent=4))
+    client = injector.get(OpenFgaClient)
+
+    store_to_auth_model = injector.get(dict[str, OFGASecurityModel])
+    for dict_key, auth_model in store_to_auth_model.items():
+        store_config: OFGAStoreConfiguration = getattr(config, dict_key)
+        write_auth_response = await write_authorization_id(auth_model, client)
+        store_config.authorization_model_id = write_auth_response.authorization_model_id
+
+    with Path(args.save_configuration_path).open("w", encoding="utf-8") as f:
+        f.write(config.model_dump_json(indent=4))
     logger.info("config: {}", config)
 
 
 def entrypoint() -> None:
     """Actual entrypoint."""
-    _main()
+    asyncio.run(_main())

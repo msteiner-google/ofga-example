@@ -42,8 +42,8 @@ build-backend = "hatchling.build"
 packages = ["src"]
 
 [project.scripts]
-create_store = "src.cli_commands.create_store.main:entrypoint"
-write_auth_model = "src.cli_commands.write_auth_model.main:entrypoint"
+create_stores = "src.cli_commands.create_store.main:entrypoint"
+write_auth_models = "src.cli_commands.write_auth_model.main:entrypoint"
 write_tuples = "src.cli_commands.write_tuples.main:entrypoint"
 start_server = "src.agent.main:entrypoint"
 
