@@ -53,6 +53,10 @@
           "reader": {
             "directly_related_user_types": [
               {
+                "type": "user",
+                "wildcard": {}
+              },
+              {
                 "type": "user"
               },
               {

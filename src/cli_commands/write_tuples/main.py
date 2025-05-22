@@ -13,7 +13,7 @@ from openfga_sdk.exceptions import ValidationException
 from src.cli_commands.write_tuples.entities import TupleCollection
 from src.configuration import ConfigurationModule
 from src.configuration.configuration_model import (
-    OFGAStoreConfiguration,
+    GeneralConfiguration,
 )
 from src.project_types import (
     SerializedConfigurationPath,
@@ -54,28 +54,43 @@ async def _main() -> None:
     )
     injector = Injector(modules=[_bind_flags, ConfigurationModule])
     client = injector.get(OpenFgaClient)
-    store_configuration = injector.get(OFGAStoreConfiguration)
+    config = injector.get(GeneralConfiguration)
 
     try:
-        for _tuple in tuples.tuples:
-            logger.info(
-                "Writing tuple {tuple_name} into store {store_name} ({store_id})",
-                tuple_name=_tuple.friendly_name,
-                store_name=store_configuration.store_name,
-                store_id=store_configuration.store_id,
+        for store_name, tuple_list in tuples.store_to_tuples.items():
+            store_configuration = config.get_store_configuration_by_store_name(
+                store_name
             )
-            user, relation, object = tuple(_tuple.relation_body.strip().split(" "))  # noqa: A001
-            logger.info("user: {}, relation: {}, object: {}", user, relation, object)
-            client_tuple = ClientTuple(user=user, relation=relation, object=object)
-            try:
-                await client.delete_tuples([client_tuple])
-                logger.debug("Tuple already present.")
-            except Exception:  # noqa: BLE001
-                logger.info("Tuple not already present.")
-            res = await client.write_tuples(body=[client_tuple])
-            logger.info("Result {}", res.writes[0].success)
+            logger.info("Inserting tuples in store {}", store_name)
+            for _tuple in tuple_list:
+                logger.info(
+                    "Writing tuple {tuple_name} into store {store_name} ({store_id})",
+                    tuple_name=_tuple.friendly_name,
+                    store_name=store_configuration.store_name,
+                    store_id=store_configuration.store_id,
+                )
+                user, relation, object = tuple(_tuple.relation_body.strip().split(" "))  # noqa: A001
+                logger.debug(
+                    "user: {}, relation: {}, object: {}", user, relation, object
+                )
+                client_tuple = ClientTuple(user=user, relation=relation, object=object)
+                try:
+                    await client.delete_tuples([client_tuple])
+                    logger.debug("Tuple already present.")
+                except Exception:  # noqa: BLE001
+                    logger.debug("Tuple not already present.")
+                res = await client.write_tuples(body=[client_tuple])
+                if res and res.writes:
+                    logger.debug("Result {}", res.writes[0].success)
+                else:
+                    logger.error(
+                        "Res is none. Store name: {}, tuple friendly_name {}",
+                        store_name,
+                        _tuple.friendly_name,
+                    )
+                    raise RuntimeError("Res shouldn't be None")  # noqa: TRY003
     except ValidationException as e:
-        logger.info("{}", e)
+        logger.error("{}", e)
         logger.exception("Error inserting tuples into store.")
     finally:
         await client.close()

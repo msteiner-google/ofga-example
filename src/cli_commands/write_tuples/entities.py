@@ -17,4 +17,4 @@ class Tuple(BaseModel):
 class TupleCollection(BaseModel):
     """Definition of a collection of tuples."""
 
-    tuples: list[Tuple] = Field(description="Collection of tuples.")
+    store_to_tuples: dict[str, list[Tuple]] = Field(description="Collection of tuples.")

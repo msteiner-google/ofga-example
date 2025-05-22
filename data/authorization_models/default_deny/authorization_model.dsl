@@ -12,5 +12,5 @@ type group
 type item
   relations
     define can_read: reader
-    define reader: [user, group#member, group]
+    define reader: [user:*, user, group#member, group]
 

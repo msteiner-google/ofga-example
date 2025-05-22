@@ -3,6 +3,7 @@
 import inspect
 from typing import Self
 
+from loguru import logger
 from pydantic import BaseModel, Field
 
 from src.project_types import ACLType
@@ -84,3 +85,17 @@ class GeneralConfiguration(BaseModel):
                     pass
 
         return found_fields
+
+    def get_store_configuration_by_store_name(
+        self, store_name: str
+    ) -> OFGAStoreConfiguration:
+        """Retrieves the store configuration whose name match the provided one."""
+        logger.debug("Looking for store {}", store_name)
+        available_store_keys: list[str] = (
+            GeneralConfiguration.get_store_configurations()
+        )
+        for store_dict_key in available_store_keys:
+            store: OFGAStoreConfiguration = getattr(self, store_dict_key)
+            if store.store_name == store_name:
+                return store
+        raise RuntimeError("Couldn't find any store with the given name.")  # noqa: TRY003
