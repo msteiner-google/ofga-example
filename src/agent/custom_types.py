@@ -6,6 +6,7 @@ from google.adk.agents import LlmAgent
 from google.genai import types
 from pydantic import BaseModel, Field
 from uuid_extensions import uuid7str
+from sqlite3 import Connection
 
 
 class Message(BaseModel):
@@ -30,3 +31,8 @@ RowListArtifactKey = NewType("RowListArtifactKey", str)
 RetrieveContextKey = NewType("RetrieveContextKey", str)
 GeminiModel = NewType("GeminiModel", str)
 AnsweringAgent = NewType("AnsweringAgent", LlmAgent)  # type: ignore
+
+
+# Differentiate the tabular datasources by giving them their own type alias
+HRDataConnection = NewType("HRDataConnection", Connection)
+FinancialDataConnection = NewType("FinancialDataConnection", Connection)

@@ -1,4 +1,4 @@
-row_id,rating
+id,rating
 alice_rating,5/5
 alice_reportee_rating,4.5/5
 bob_rating,3/5

@@ -13,7 +13,7 @@ from google.adk.runners import (
 from google.adk.sessions import BaseSessionService
 from injector import Binder, Module, provider, singleton
 
-from src.agent.agent import OFGATestAgent, _FilterAgent, _RetrievalAgent
+from src.agent.agent import OFGATestAgent
 from src.agent.custom_types import (
     AgentName,
     AnsweringAgent,
@@ -22,6 +22,10 @@ from src.agent.custom_types import (
     GeminiModel,
     RetrieveContextKey,
     RowListArtifactKey,
+)
+from src.agent.sub_agents.document_agents import (
+    FilterDocumentAgent,
+    RetrievalDocumentsAgent,
 )
 
 
@@ -54,8 +58,8 @@ class AgentModule(Module):
     def _provide_agent(  # noqa: PLR0913, PLR0917, PLR6301
         self,
         agent_name: AgentName,
-        retrieval_agent: _RetrievalAgent,
-        filter_agent: _FilterAgent,
+        retrieval_agent: RetrievalDocumentsAgent,
+        filter_agent: FilterDocumentAgent,
         documents_artifact_key: DocumentListArtifactKey,
         rows_artifact_key: RowListArtifactKey,
         answering_agent: AnsweringAgent,
@@ -109,3 +113,4 @@ class AgentModule(Module):
         binder.bind(DocumentListArtifactKey, to=DocumentListArtifactKey("documents"))
         binder.bind(RowListArtifactKey, to=RowListArtifactKey("rows"))
         binder.bind(RetrieveContextKey, to=RetrieveContextKey("retrieved_context"))
+        binder.bind()
