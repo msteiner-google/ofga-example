@@ -20,6 +20,7 @@ from src.agent.custom_types import (
     Message,
 )
 from src.agent.di import AgentModule
+from src.agent.sub_agents.di import SubAgentModule
 from src.configuration import ConfigurationModule
 from src.project_types import SerializedConfigurationPath, ShouldResolveMissingValues
 
@@ -66,7 +67,16 @@ def _bind_flags(binder: Binder) -> None:
 
 
 app = FastAPI()
-inj = Injector([_bind_flags, ConfigurationModule(), AgentModule()])
+inj = Injector([
+    # Bind flags so that they are available by the other modules.
+    _bind_flags,
+    # Confiugration module
+    ConfigurationModule(),
+    # Module for the sub agents
+    SubAgentModule(),
+    # Main agent module.
+    AgentModule(),
+])
 attach_injector(app, inj)
 
 

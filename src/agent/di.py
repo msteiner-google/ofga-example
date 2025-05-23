@@ -113,4 +113,3 @@ class AgentModule(Module):
         binder.bind(DocumentListArtifactKey, to=DocumentListArtifactKey("documents"))
         binder.bind(RowListArtifactKey, to=RowListArtifactKey("rows"))
         binder.bind(RetrieveContextKey, to=RetrieveContextKey("retrieved_context"))
-        binder.bind()

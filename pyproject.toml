@@ -16,6 +16,7 @@ dependencies = [
     "uvicorn>=0.34.2",
     "uuid7>=0.1.0",
     "google-auth>=2.40.1",
+    "pandas>=2.2.3",
 ]
 
 [dependency-groups]

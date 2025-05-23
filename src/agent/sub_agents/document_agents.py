@@ -119,7 +119,9 @@ class FilterDocumentAgent(BaseAgent):
             file_path = Path(file_path_str)
             file_name = file_path.name
             logger.info("Checking if user {} can read file {}", user_id, file_name)
-            if await can_user_read(user_id, file_name, self.ofga_client):
+            if await can_user_read(
+                client=self.ofga_client, user_id=user_id, document_id=file_name
+            ):
                 logger.info("He/she can read file {}", file_name)
                 filtered_path_2_content[str(file_path.absolute())] = file_content
         logger.info(filtered_path_2_content)
