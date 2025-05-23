@@ -1,6 +1,7 @@
 """Entrypoint."""
 
 from argparse import ArgumentParser
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from google.adk.sessions import BaseSessionService, Session
 from google.genai import types
 from injector import Binder, Injector, SingletonScope
 from loguru import logger
+from openfga_sdk import OpenFgaClient
 
 from src.agent.custom_types import (
     AgentName,
@@ -66,7 +68,6 @@ def _bind_flags(binder: Binder) -> None:
     binder.bind(AgentName, to=AgentName(args.agent_name), scope=SingletonScope)
 
 
-app = FastAPI()
 inj = Injector([
     # Bind flags so that they are available by the other modules.
     _bind_flags,
@@ -77,10 +78,23 @@ inj = Injector([
     # Main agent module.
     AgentModule(),
 ])
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):  # noqa: ANN201, D103
+    # Startup ops.
+    yield
+    clients = inj.get(dict[str, OpenFgaClient])
+    for client in clients.values():
+        logger.info("Closing pending open fga clients.")
+        await client.close()
+
+
+app = FastAPI(lifespan=lifespan)
 attach_injector(app, inj)
 
 
-def get_or_create_session(
+async def get_or_create_session(
     user_id: str,
     session_id: str,
     app_name: str,
@@ -88,14 +102,14 @@ def get_or_create_session(
     user_content: types.Content | None = None,
 ) -> Session:
     """Get's or create a session."""
-    maybe_session = session_service.get_session(
+    maybe_session = await session_service.get_session(
         app_name=app_name, user_id=user_id, session_id=session_id
     )
     if maybe_session:
         logger.info("returning existing session.")
         return maybe_session
     logger.info("Creating new session.")
-    return session_service.create_session(
+    return await session_service.create_session(
         app_name=app_name,
         user_id=user_id,
         session_id=session_id,
@@ -118,7 +132,7 @@ async def new_message(
     """New message endpoint."""
     logger.info("Received new message")
     content = types.Content(role="user", parts=[types.Part(text=message.body)])
-    session = get_or_create_session(
+    session = await get_or_create_session(
         user_id=message.user_id,
         app_name=app_name,
         session_id=message.session_id,

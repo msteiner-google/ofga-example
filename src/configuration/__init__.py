@@ -78,6 +78,7 @@ class ConfigurationModule(Module):
     ) -> OFGAServerConfiguration:
         return general_configuration.server_configuration
 
+    @singleton
     @provider
     def _provide_ofga_api_client(  # noqa: PLR6301
         self,
@@ -86,6 +87,7 @@ class ConfigurationModule(Module):
         logger.warning("Getting a generic client, i.e. not specialized for a store.")
         return get_client(config, maybe_store_conf=None)
 
+    @singleton
     @multiprovider
     def _provide_ofga_api_clients_for_each_store(  # noqa: PLR6301
         self,

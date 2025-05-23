@@ -11,6 +11,7 @@ from google.adk.runners import InvocationContext
 from injector import inject
 from loguru import logger
 from openfga_sdk import OpenFgaClient
+from pydantic import ConfigDict
 
 from src.agent.custom_types import FinancialDataConnection, HRDataConnection
 from src.ofga_operations.objects import list_objects_for_user
@@ -29,6 +30,7 @@ class _FilteringTabularAgentLike(BaseAgent):
     _sqlite_connection: Connection
     _ofga_client: OpenFgaClient
     _relationships_name: str
+    model_config = ConfigDict(extra="allow")
 
     def __init__(
         self,
@@ -36,8 +38,7 @@ class _FilteringTabularAgentLike(BaseAgent):
         sqlite_conn: Connection,
         ofga_client: OpenFgaClient,
         relationships_name: str,
-        *args: list,
-        **kwargs: dict,
+        name: str,
     ) -> None:
         """Init method.
 
@@ -48,16 +49,14 @@ class _FilteringTabularAgentLike(BaseAgent):
             ofga_client (OpenFgaClient): The openfga client that will be used to perform
                 the ListObject api requests.
             relationships_name(str): The name of the relationships in ofga.
-            args: The args
-            kwargs: The kwargs
+            name(str): The name of the agent.
         """
         super().__init__(
             _acl_type=acl_type,
             _sqlite_connection=sqlite_conn,
             _ofga_client=ofga_client,
             _relationships_name=relationships_name,
-            args=args,
-            kwargs=kwargs,
+            name=name,
         )
 
     def _handle_relationship_being_present(
@@ -116,7 +115,7 @@ class FilterTabularAgentDefaultDeny(_FilteringTabularAgentLike):
     ) -> None:
         """Something."""
         super().__init__(
-            name="FilterTabularAgentDefaultDeny",
+            name="HRAgent",
             acl_type=ACLType.DEFAULT_DENY,
             ofga_client=ofga_client,
             sqlite_conn=connection,
@@ -132,7 +131,7 @@ class FilterTabulerAgentDefaultAllow(_FilteringTabularAgentLike):
     ) -> None:
         """Something."""
         super().__init__(
-            name="FilterTabulerAgentDefaultAllow",
+            name="FinancialAgent",
             acl_type=ACLType.DEFAULT_ALLOW_WITH_EXPLICIT_DENY,
             ofga_client=ofga_client,
             sqlite_conn=connection,

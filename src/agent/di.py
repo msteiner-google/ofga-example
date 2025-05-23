@@ -27,6 +27,10 @@ from src.agent.sub_agents.document_agents import (
     FilterDocumentAgent,
     RetrievalDocumentsAgent,
 )
+from src.agent.sub_agents.tabular_agent import (
+    FilterTabularAgentDefaultDeny,
+    FilterTabulerAgentDefaultAllow,
+)
 
 
 class AgentModule(Module):
@@ -64,6 +68,8 @@ class AgentModule(Module):
         rows_artifact_key: RowListArtifactKey,
         answering_agent: AnsweringAgent,
         retrieved_context_key: RetrieveContextKey,
+        hr_agent: FilterTabularAgentDefaultDeny,
+        financial_data_agent: FilterTabulerAgentDefaultAllow,
     ) -> BaseAgent:
         return OFGATestAgent(
             name=agent_name,
@@ -73,6 +79,8 @@ class AgentModule(Module):
             documents_artifact_key=documents_artifact_key,
             rows_artifact_key=rows_artifact_key,
             retrieved_context_key=retrieved_context_key,
+            financial_data_agent=financial_data_agent,
+            hr_data_agent=hr_agent,
         )
 
     @provider

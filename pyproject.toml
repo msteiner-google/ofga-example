@@ -7,7 +7,6 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.115.12",
     "fastapi-injector>=0.8.0",
-    "google-adk>=0.5.0",
     "injector>=0.22.0",
     "loguru>=0.7.3",
     "openfga-sdk>=0.9.4",
@@ -17,6 +16,7 @@ dependencies = [
     "uuid7>=0.1.0",
     "google-auth>=2.40.1",
     "pandas>=2.2.3",
+    "google-adk>=1.0.0",
 ]
 
 [dependency-groups]

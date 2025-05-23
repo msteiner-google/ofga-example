@@ -78,12 +78,12 @@ class SubAgentModule(Module):
     @singleton
     def _provide_agent_for_financial_data(  # noqa: PLR6301
         self,
-        db_conn: HRDataConnection,
+        db_conn: FinancialDataConnection,
         clients: dict[str, OpenFgaClient],
     ) -> FilterTabulerAgentDefaultAllow:
         # WARN: This shouldn't be hardcoded.
         client = clients["store_for_tables_with_default_allow"]
-        return FilterTabulerAgentDefaultAllow(connection=db_conn, client=client)
+        return FilterTabulerAgentDefaultAllow(connection=db_conn, ofga_client=client)
 
     @provider
     @singleton
@@ -94,4 +94,4 @@ class SubAgentModule(Module):
     ) -> FilterTabularAgentDefaultDeny:
         # WARN: This shouldn't be hardcoded.
         client = clients["store_for_tables_with_default_deny"]
-        return FilterTabularAgentDefaultDeny(connection=db_conn, client=client)
+        return FilterTabularAgentDefaultDeny(connection=db_conn, ofga_client=client)
