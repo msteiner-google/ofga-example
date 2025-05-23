@@ -103,6 +103,7 @@ class FilterDocumentAgent(BaseAgent):
             raise RuntimeError()
 
         user_id = ctx.session.user_id
+        logger.info("User id: {}", user_id)
         content = await artifact_service.load_artifact(
             app_name=ctx.app_name,
             session_id=ctx.session.id,
@@ -163,6 +164,7 @@ class DocumentHandlerAgent(BaseAgent):
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
         logger.debug("Inside agent body.")
+        logger.info("User id: {}, {}", ctx.session.user_id, ctx.user_id)
         data_retrieved_successfully: bool = False
         async for event in self._retriever_agent.run_async(ctx):
             event_metadata = event.custom_metadata

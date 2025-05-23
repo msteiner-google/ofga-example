@@ -11,7 +11,6 @@ from google.adk.runners import (
     Runner,
 )
 from google.adk.sessions import BaseSessionService
-from google.adk.tools import agent_tool
 from injector import Binder, Module, provider, singleton
 
 from src.agent.agent import OFGATestAgent
@@ -27,8 +26,6 @@ from src.agent.custom_types import (
 )
 from src.agent.sub_agents.document_agents import (
     DocumentHandlerAgent,
-    FilterDocumentAgent,
-    RetrievalDocumentsAgent,
 )
 from src.agent.sub_agents.tabular_agent import (
     FilterTabularAgentDefaultDeny,
@@ -95,7 +92,8 @@ class AgentModule(Module):
 
             Context:
             ```
-            {{artifact.{retrieved_context_key}}}
+            {{artifact.{retrieved_context_key}?}}
+            {{{retrieved_context_key}?}}
             ```
 
             Question:
@@ -113,22 +111,20 @@ class AgentModule(Module):
         document_handler_agent: DocumentHandlerAgent,
         hr_agent: FilterTabularAgentDefaultDeny,
         financial_data_agent: FilterTabulerAgentDefaultAllow,
+        retrieved_context_key: RetrieveContextKey,
         model: GeminiModel,
     ) -> DispatcherAgent:
-        hr_agent_tool = agent_tool.AgentTool(hr_agent, skip_summarization=True)
-        document_tool = agent_tool.AgentTool(
-            document_handler_agent, skip_summarization=True
-        )
-        financial_tool = agent_tool.AgentTool(
-            financial_data_agent, skip_summarization=True
-        )
         dispatcher: LlmAgent = LlmAgent(
             model=model,
             name="DispatcherAgent",
             description=dedent("""
-            You route requests to the best suited tool available.
+            You are an assistant. Delegate the requests in the following manner:
+                - financial requests to FinancialAgent
+                - hr requests to HRAgent
+                - reuqests regarding todos to the RAGAgent
             """),
-            tools=[hr_agent_tool, document_tool, financial_tool],
+            sub_agents=[hr_agent, document_handler_agent, financial_data_agent],
+            output_key=retrieved_context_key,
         )
         return DispatcherAgent(dispatcher)
 

@@ -17,7 +17,6 @@ from src.ofga_operations.store import get_or_create_store
 from src.project_types import (
     SerializedConfigurationPath,
     ShouldResolveMissingValues,
-    ShouldSaveUpdatedConfiguration,
 )
 
 

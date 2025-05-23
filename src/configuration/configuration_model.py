@@ -1,7 +1,6 @@
 """Defines the configuration model."""
 
 import inspect
-from typing import Self
 
 from loguru import logger
 from pydantic import BaseModel, Field

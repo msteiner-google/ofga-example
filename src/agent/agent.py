@@ -6,6 +6,7 @@ from google.adk.agents import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events import Event
 from injector import inject
+from loguru import logger
 from pydantic import ConfigDict
 
 from src.agent.custom_types import (
@@ -38,6 +39,7 @@ class OFGATestAgent(BaseAgent):
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
         async for event in self._dispatcher_agent.run_async(ctx):
+            logger.info(event)
             yield event
         async for event in self._answering_agent.run_async(ctx):
             yield event

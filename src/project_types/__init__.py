@@ -1,7 +1,7 @@
 """Module containing the types used for the project."""
 
 from collections.abc import Mapping
-from enum import Enum, StrEnum
+from enum import StrEnum
 from pathlib import Path
 from typing import NewType
 

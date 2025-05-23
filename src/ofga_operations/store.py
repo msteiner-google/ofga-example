@@ -1,6 +1,5 @@
 """Operations relative to the store."""
 
-import asyncio
 import json
 from typing import TYPE_CHECKING, cast
 
@@ -13,10 +12,8 @@ from openfga_sdk.models.write_authorization_model_request import (
 )
 
 from src.configuration.configuration_model import (
-    GeneralConfiguration,
     OFGAStoreConfiguration,
 )
-from src.ofga_operations.utils import get_client
 from src.project_types import OFGASecurityModel
 
 if TYPE_CHECKING:

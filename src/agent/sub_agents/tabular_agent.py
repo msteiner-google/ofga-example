@@ -1,14 +1,14 @@
 """Agents for tabular data."""
 
+import json
 from collections.abc import AsyncGenerator
-from enum import Enum
-from sqlite3 import Connection
+from sqlite3 import Connection, Cursor
 from textwrap import dedent
 
 from google.adk.agents import BaseAgent
 from google.adk.events import Event
 from google.adk.runners import InvocationContext
-from injector import inject
+from google.genai import types
 from loguru import logger
 from openfga_sdk import OpenFgaClient
 from pydantic import ConfigDict
@@ -18,21 +18,12 @@ from src.ofga_operations.objects import list_objects_for_user
 from src.project_types import ACLType
 
 
-class _ShouldItemBeKept(Enum):
-    YES = 0
-    NO = 1
-
-
 class _FilteringTabularAgentLike(BaseAgent):
     """Agent that pulls of the tabular data while performing pre-filtering."""
 
-    _acl_type: ACLType
-    _sqlite_connection: Connection
-    _ofga_client: OpenFgaClient
-    _relationships_name: str
     model_config = ConfigDict(extra="allow")
 
-    def __init__(
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         acl_type: ACLType,
         sqlite_conn: Connection,
@@ -54,47 +45,33 @@ class _FilteringTabularAgentLike(BaseAgent):
             description(str): The purpose of this agent.
         """
         super().__init__(
-            _acl_type=acl_type,
-            _sqlite_connection=sqlite_conn,
-            _ofga_client=ofga_client,
-            _relationships_name=relationships_name,
             name=name,
             description=description,
         )
 
-    def _handle_relationship_being_present(
-        self,
-        is_relationship_present: bool,  # noqa: FBT001
-    ) -> _ShouldItemBeKept:
-        # If the acl type is DEFAULT_DENY and the relationship is present it means that
-        # we should keep the item.
-        if self._acl_type == ACLType.DEFAULT_DENY and is_relationship_present:
-            return _ShouldItemBeKept.YES
-
-        # If the ACL type is default allow and there is no relationship it means the
-        # user isn't blacklisted and so the item should be kept.
-        if (
-            self._acl_type == ACLType.DEFAULT_ALLOW_WITH_EXPLICIT_DENY
-            and not is_relationship_present
-        ):
-            return _ShouldItemBeKept.YES
-
-        # We should return no in all other cases.
-        return _ShouldItemBeKept.NO
+        self._acl_type: ACLType = acl_type
+        self._sqlite_connection: Connection = sqlite_conn
+        self._ofga_client: OpenFgaClient = ofga_client
+        self._relationships_name: str = relationships_name
 
     async def _build_query(self, user_id: str) -> str:
         object_type = "item"
-        objects = list_objects_for_user(
+        objects = await list_objects_for_user(
             user_id=user_id,
             relation=self._relationships_name,
             object_type=object_type,
             client=self._ofga_client,
         )
+        objects = [f'"{o.split(":")[-1]}"' for o in objects]
         logger.info("ListObject for user {} returned: {}", user_id, objects)
-        return dedent("""
+        clause = "IN" if self._acl_type == ACLType.DEFAULT_DENY else "NOT IN"
+
+        query = dedent(f"""
         SELECT * FROM data
-        WHERE TRUE
-        """)
+        WHERE data.id {clause} ({",".join(objects)})
+        """)  # noqa: S608
+        logger.info("Query {}", query)
+        return query
 
     async def _run_async_impl(
         self, ctx: InvocationContext
@@ -102,11 +79,14 @@ class _FilteringTabularAgentLike(BaseAgent):
         if not ctx.artifact_service:
             raise RuntimeError()
 
-        # Files are under the "data" folder. This is just for demo purposes.
+        query = await self._build_query(user_id=ctx.user_id)
+        cur: Cursor = self._sqlite_connection.execute(query)
 
+        data = json.dumps(cur.fetchall())
+        logger.info(data)
         yield Event(
             author=self.name,
-            custom_metadata={"retrieved_files": False, "has_error": False},
+            content=types.Content(parts=[types.Part(text=data)]),
         )
 
 

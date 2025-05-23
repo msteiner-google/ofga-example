@@ -1,7 +1,7 @@
 """Configuration module."""
 
 import json
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from injector import (
     Module,
@@ -20,18 +20,13 @@ from src.configuration.configuration_model import (
     OFGAServerConfiguration,
     OFGAStoreConfiguration,
 )
-from src.ofga_operations.store import get_or_create_store
 from src.ofga_operations.utils import get_client
 from src.project_types import (
     OFGASecurityModel,
     SerializedConfigurationMapping,
     SerializedConfigurationPath,
-    ShouldResolveMissingValues,
 )
 from src.project_types.utils import load_json_from_file_path
-
-if TYPE_CHECKING:
-    from openfga_sdk.models.create_store_response import CreateStoreResponse
 
 
 class ConfigurationModule(Module):
