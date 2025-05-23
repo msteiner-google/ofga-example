@@ -20,13 +20,19 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["ipython>=9.2.0", "mypy>=1.15.0", "ruff>=0.11.8"]
+dev = [
+    "ipython>=9.2.0",
+    "mypy>=1.15.0",
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.26.0",
+    "ruff>=0.11.8",
+]
 
 [tool.mypy]
 follow_untyped_imports = true
 disable_error_code = ["attr-defined"]
 disallow_untyped_defs = true
-exclude = ["test/"]
+exclude = ["tests/"]
 ignore_missing_imports = true
 no_implicit_optional = true
 python_version = "3.12"
@@ -219,7 +225,7 @@ select = [
     # Ruff-specific rules
     "RUF",
 ]
-ignore = ["COM812", "ISC001", "ANN101"]
+ignore = ["COM812", "ISC001", "S101"]
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
@@ -227,7 +233,7 @@ unfixable = []
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-exclude = ["test/**"]
+exclude = []
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
