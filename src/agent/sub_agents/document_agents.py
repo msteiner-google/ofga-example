@@ -3,6 +3,7 @@
 import json
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from textwrap import dedent
 
 from google.adk.agents import BaseAgent
 from google.adk.agents.invocation_context import InvocationContext
@@ -11,6 +12,7 @@ from google.genai import types
 from injector import inject
 from loguru import logger
 from openfga_sdk import OpenFgaClient
+from pydantic import ConfigDict
 
 from src.agent.custom_types import (
     DocumentListArtifactKey,
@@ -23,8 +25,7 @@ from src.ofga_operations.checks import can_user_read
 class RetrievalDocumentsAgent(BaseAgent):
     """Agent that mimicks the retrieval."""
 
-    documents_artifact_key: DocumentListArtifactKey
-    rows_artifact_key: RowListArtifactKey
+    model_config = ConfigDict(extra="allow")
 
     @inject
     def __init__(
@@ -35,9 +36,9 @@ class RetrievalDocumentsAgent(BaseAgent):
         """Init method."""
         super().__init__(
             name="retrieval_agent",
-            documents_artifact_key=documents_artifact_key,
-            rows_artifact_key=rows_artifact_key,
         )
+        self._documents_artifact_key: DocumentListArtifactKey = documents_artifact_key
+        self._rows_artifact_key: RowListArtifactKey = rows_artifact_key
 
     async def _run_async_impl(
         self, ctx: InvocationContext
@@ -61,7 +62,7 @@ class RetrievalDocumentsAgent(BaseAgent):
             app_name=ctx.app_name,
             session_id=ctx.session.id,
             user_id=ctx.session.user_id,
-            filename=self.documents_artifact_key,
+            filename=self._documents_artifact_key,
             artifact=types.Part(text=json.dumps(path_2_contents)),
         )
 
@@ -74,10 +75,7 @@ class RetrievalDocumentsAgent(BaseAgent):
 class FilterDocumentAgent(BaseAgent):
     """Agent that filters the files using ofga api calls."""
 
-    ofga_client: OpenFgaClient
-    documents_artifact_key: DocumentListArtifactKey
-    rows_artifact_key: RowListArtifactKey
-    retrieved_context_key: RetrieveContextKey
+    model_config = ConfigDict(extra="allow")
 
     @inject
     def __init__(
@@ -90,11 +88,12 @@ class FilterDocumentAgent(BaseAgent):
         """Init method."""
         super().__init__(
             name="filter_agent",
-            ofga_client=openfga_client,
-            documents_artifact_key=documents_artifact_key,
-            rows_artifact_key=rows_artifact_key,
-            retrieved_context_key=retrieved_context_key,
         )
+
+        self._ofga_client: OpenFgaClient = openfga_client
+        self._documents_artifact_key: DocumentListArtifactKey = documents_artifact_key
+        self._rows_artifact_key: RowListArtifactKey = rows_artifact_key
+        self._retrieved_context_key: RetrieveContextKey = retrieved_context_key
 
     async def _run_async_impl(
         self, ctx: InvocationContext
@@ -108,7 +107,7 @@ class FilterDocumentAgent(BaseAgent):
             app_name=ctx.app_name,
             session_id=ctx.session.id,
             user_id=user_id,
-            filename=self.documents_artifact_key,
+            filename=self._documents_artifact_key,
         )
         if not content or not content.text:
             raise RuntimeError()
@@ -120,7 +119,7 @@ class FilterDocumentAgent(BaseAgent):
             file_name = file_path.name
             logger.info("Checking if user {} can read file {}", user_id, file_name)
             if await can_user_read(
-                client=self.ofga_client, user_id=user_id, document_id=file_name
+                client=self._ofga_client, user_id=user_id, document_id=file_name
             ):
                 logger.info("He/she can read file {}", file_name)
                 filtered_path_2_content[str(file_path.absolute())] = file_content
@@ -129,7 +128,7 @@ class FilterDocumentAgent(BaseAgent):
             app_name=ctx.app_name,
             session_id=ctx.session.id,
             user_id=ctx.session.user_id,
-            filename=self.retrieved_context_key,
+            filename=self._retrieved_context_key,
             artifact=types.Part(text=json.dumps(filtered_path_2_content)),
         )
 
@@ -137,3 +136,54 @@ class FilterDocumentAgent(BaseAgent):
             author=self.name,
             custom_metadata={"filtered_files": True, "has_error": False},
         )
+
+
+class DocumentHandlerAgent(BaseAgent):
+    """Agent that does RAG."""
+
+    description: str = dedent("""
+    Retrieves to-do items from the available documents.
+    """)
+    model_config = ConfigDict(extra="allow")
+
+    @inject
+    def __init__(
+        self,
+        _retriever_agent: RetrievalDocumentsAgent,
+        _filter_agent: FilterDocumentAgent,
+    ) -> None:
+        """Init."""
+        super().__init__(
+            name="RAGAgent",
+        )
+        self._filter_agent = _filter_agent
+        self._retriever_agent = _retriever_agent
+
+    async def _run_async_impl(
+        self, ctx: InvocationContext
+    ) -> AsyncGenerator[Event, None]:
+        logger.debug("Inside agent body.")
+        data_retrieved_successfully: bool = False
+        async for event in self._retriever_agent.run_async(ctx):
+            event_metadata = event.custom_metadata
+            if event_metadata:
+                logger.info("Event has metadata.")
+                if (
+                    event_metadata["retrieved_files"]
+                    and not event_metadata["has_error"]
+                ):
+                    data_retrieved_successfully = True
+        if data_retrieved_successfully:
+            logger.info("data was retrieved!")
+
+        async for event in self._filter_agent.run_async(ctx):
+            event_metadata = event.custom_metadata
+            if (
+                event_metadata
+                and "filtered_files" in event_metadata
+                and event_metadata["filtered_files"]
+                and "has_error" in event_metadata
+                and not event_metadata["has_error"]
+            ):
+                logger.info("Data successfully filtered.")
+            yield event

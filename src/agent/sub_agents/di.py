@@ -2,6 +2,7 @@
 
 import sqlite3
 from pathlib import Path
+from textwrap import dedent
 
 import pandas as pd
 from injector import Module, provider, singleton
@@ -83,7 +84,12 @@ class SubAgentModule(Module):
     ) -> FilterTabulerAgentDefaultAllow:
         # WARN: This shouldn't be hardcoded.
         client = clients["store_for_tables_with_default_allow"]
-        return FilterTabulerAgentDefaultAllow(connection=db_conn, ofga_client=client)
+        description = dedent("""
+        You have access to the financial data of our company.
+        """)
+        return FilterTabulerAgentDefaultAllow(
+            connection=db_conn, ofga_client=client, description=description
+        )
 
     @provider
     @singleton
@@ -94,4 +100,10 @@ class SubAgentModule(Module):
     ) -> FilterTabularAgentDefaultDeny:
         # WARN: This shouldn't be hardcoded.
         client = clients["store_for_tables_with_default_deny"]
-        return FilterTabularAgentDefaultDeny(connection=db_conn, ofga_client=client)
+        description = dedent("""
+        You have access to HR data regarding performance results for the last
+        performance cycle.
+        """)
+        return FilterTabularAgentDefaultDeny(
+            connection=db_conn, ofga_client=client, description=description
+        )

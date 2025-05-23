@@ -39,6 +39,7 @@ class _FilteringTabularAgentLike(BaseAgent):
         ofga_client: OpenFgaClient,
         relationships_name: str,
         name: str,
+        description: str,
     ) -> None:
         """Init method.
 
@@ -50,6 +51,7 @@ class _FilteringTabularAgentLike(BaseAgent):
                 the ListObject api requests.
             relationships_name(str): The name of the relationships in ofga.
             name(str): The name of the agent.
+            description(str): The purpose of this agent.
         """
         super().__init__(
             _acl_type=acl_type,
@@ -57,6 +59,7 @@ class _FilteringTabularAgentLike(BaseAgent):
             _ofga_client=ofga_client,
             _relationships_name=relationships_name,
             name=name,
+            description=description,
         )
 
     def _handle_relationship_being_present(
@@ -111,7 +114,7 @@ class FilterTabularAgentDefaultDeny(_FilteringTabularAgentLike):
     """Pass."""
 
     def __init__(
-        self, connection: HRDataConnection, ofga_client: OpenFgaClient
+        self, connection: HRDataConnection, ofga_client: OpenFgaClient, description: str
     ) -> None:
         """Something."""
         super().__init__(
@@ -120,6 +123,7 @@ class FilterTabularAgentDefaultDeny(_FilteringTabularAgentLike):
             ofga_client=ofga_client,
             sqlite_conn=connection,
             relationships_name="can_read",
+            description=description,
         )
 
 
@@ -127,7 +131,10 @@ class FilterTabulerAgentDefaultAllow(_FilteringTabularAgentLike):
     """Pass."""
 
     def __init__(
-        self, connection: FinancialDataConnection, ofga_client: OpenFgaClient
+        self,
+        connection: FinancialDataConnection,
+        ofga_client: OpenFgaClient,
+        description: str,
     ) -> None:
         """Something."""
         super().__init__(
@@ -136,4 +143,5 @@ class FilterTabulerAgentDefaultAllow(_FilteringTabularAgentLike):
             ofga_client=ofga_client,
             sqlite_conn=connection,
             relationships_name="excluded",
+            description=description,
         )

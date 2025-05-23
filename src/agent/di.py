@@ -11,6 +11,7 @@ from google.adk.runners import (
     Runner,
 )
 from google.adk.sessions import BaseSessionService
+from google.adk.tools import agent_tool
 from injector import Binder, Module, provider, singleton
 
 from src.agent.agent import OFGATestAgent
@@ -18,12 +19,14 @@ from src.agent.custom_types import (
     AgentName,
     AnsweringAgent,
     AppName,
+    DispatcherAgent,
     DocumentListArtifactKey,
     GeminiModel,
     RetrieveContextKey,
     RowListArtifactKey,
 )
 from src.agent.sub_agents.document_agents import (
+    DocumentHandlerAgent,
     FilterDocumentAgent,
     RetrievalDocumentsAgent,
 )
@@ -59,28 +62,16 @@ class AgentModule(Module):
 
     @provider
     @singleton
-    def _provide_agent(  # noqa: PLR0913, PLR0917, PLR6301
+    def _provide_agent(  # noqa: PLR6301
         self,
         agent_name: AgentName,
-        retrieval_agent: RetrievalDocumentsAgent,
-        filter_agent: FilterDocumentAgent,
-        documents_artifact_key: DocumentListArtifactKey,
-        rows_artifact_key: RowListArtifactKey,
         answering_agent: AnsweringAgent,
-        retrieved_context_key: RetrieveContextKey,
-        hr_agent: FilterTabularAgentDefaultDeny,
-        financial_data_agent: FilterTabulerAgentDefaultAllow,
+        dispatcher_agent: DispatcherAgent,
     ) -> BaseAgent:
         return OFGATestAgent(
             name=agent_name,
-            retrieval_agent=retrieval_agent,
-            filter_agent=filter_agent,
             answering_agent=answering_agent,
-            documents_artifact_key=documents_artifact_key,
-            rows_artifact_key=rows_artifact_key,
-            retrieved_context_key=retrieved_context_key,
-            financial_data_agent=financial_data_agent,
-            hr_data_agent=hr_agent,
+            dispatcher_agent=dispatcher_agent,
         )
 
     @provider
@@ -114,6 +105,32 @@ class AgentModule(Module):
             """),
         )
         return AnsweringAgent(llm_agent)
+
+    @provider
+    @singleton
+    def _provide_dispacther_agent(  # noqa: PLR6301
+        self,
+        document_handler_agent: DocumentHandlerAgent,
+        hr_agent: FilterTabularAgentDefaultDeny,
+        financial_data_agent: FilterTabulerAgentDefaultAllow,
+        model: GeminiModel,
+    ) -> DispatcherAgent:
+        hr_agent_tool = agent_tool.AgentTool(hr_agent, skip_summarization=True)
+        document_tool = agent_tool.AgentTool(
+            document_handler_agent, skip_summarization=True
+        )
+        financial_tool = agent_tool.AgentTool(
+            financial_data_agent, skip_summarization=True
+        )
+        dispatcher: LlmAgent = LlmAgent(
+            model=model,
+            name="DispatcherAgent",
+            description=dedent("""
+            You route requests to the best suited tool available.
+            """),
+            tools=[hr_agent_tool, document_tool, financial_tool],
+        )
+        return DispatcherAgent(dispatcher)
 
     @override
     def configure(self, binder: Binder) -> None:
