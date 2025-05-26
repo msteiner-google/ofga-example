@@ -18,7 +18,7 @@ variable "cloud_sql_instance_name" {
 variable "cloud_sql_tier" {
   description = "Machine type for Cloud SQL (e.g., db-f1-micro, db-g1-small)."
   type        = string
-  default     = "db-f1-micro" # Choose based on needs
+  default     = "db-g1-small" # Choose based on needs
 }
 
 variable "cloud_sql_db_name" {
@@ -49,10 +49,4 @@ variable "cloud_run_service_name" {
   description = "Name for the Cloud Run service."
   type        = string
   default     = "openfga-server"
-}
-
-variable "cloud_run_sa_name" {
-  description = "Name for the Cloud Run service account (short name)."
-  type        = string
-  default     = "openfga-run-sa"
 }

@@ -69,7 +69,7 @@ resource "google_sql_database_instance" "main" {
   project             = var.project_id
   name                = var.cloud_sql_instance_name
   region              = var.region
-  database_version    = "POSTGRES_14"
+  database_version    = "POSTGRES_17"
   deletion_protection = false # Set to true for production
 
   settings {
@@ -103,7 +103,7 @@ resource "google_sql_user" "openfga_user" {
 
 resource "google_cloud_run_v2_job" "openfga_run_migrations" {
   project             = var.project_id
-  name                = "run_db_migrations"
+  name                = "run-db-migrations"
   location            = var.region
   deletion_protection = false # Set to true for production if desired
   template {
@@ -132,7 +132,7 @@ resource "google_cloud_run_v2_job" "openfga_run_migrations" {
           name = "OPENFGA_DATASTORE_URI"
           # The Cloud SQL socket will be at /cloudsql/INSTANCE_CONNECTION_NAME
           # Adding sslmode=disable is often necessary for Unix socket connections to PostgreSQL.
-          value = "postgres:///postgres?host=/cloudsql/${google_sql_database_instance.main.connection_name}&sslmode=disable"
+          value = "postgres://:@/postgres?host=/cloudsql/${google_sql_database_instance.main.connection_name}&sslmode=disable"
         }
         env {
           name  = "OPENFGA_DATASTORE_USERNAME"
