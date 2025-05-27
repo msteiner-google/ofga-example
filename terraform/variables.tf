@@ -36,7 +36,7 @@ variable "cloud_sql_user_name" {
 variable "openfga_image" {
   description = "The OpenFGA Docker image to deploy (e.g., openfga/openfga:latest)."
   type        = string
-  default     = "openfga/openfga:latest" # Ensure this image is suitable
+  default     = "openfga/openfga:v1.8.11"
 }
 
 variable "enable_openfga_playground" {

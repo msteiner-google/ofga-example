@@ -72,8 +72,10 @@ resource "google_sql_database_instance" "main" {
   database_version    = "POSTGRES_17"
   deletion_protection = false # Set to true for production
 
+
   settings {
-    tier = var.cloud_sql_tier
+    tier    = var.cloud_sql_tier
+    edition = "ENTERPRISE"
     ip_configuration {
       ipv4_enabled = true # Not strictly needed for Cloud Run direct connection
     }
@@ -132,7 +134,7 @@ resource "google_cloud_run_v2_job" "openfga_run_migrations" {
           name = "OPENFGA_DATASTORE_URI"
           # The Cloud SQL socket will be at /cloudsql/INSTANCE_CONNECTION_NAME
           # Adding sslmode=disable is often necessary for Unix socket connections to PostgreSQL.
-          value = "postgres://:@/postgres?host=/cloudsql/${google_sql_database_instance.main.connection_name}&sslmode=disable"
+          value = "postgres://${google_sql_user.openfga_user.name}@/postgres?host=/cloudsql/${google_sql_database_instance.main.connection_name}&sslmode=disable"
         }
         env {
           name  = "OPENFGA_DATASTORE_USERNAME"
@@ -148,18 +150,6 @@ resource "google_cloud_run_v2_job" "openfga_run_migrations" {
           }
         }
         env {
-          name  = "OPENFGA_HTTP_ADDR"
-          value = ":8080"
-        }
-        env {
-          name  = "OPENFGA_GRPC_ADDR"
-          value = ":8081"
-        }
-        env {
-          name  = "OPENFGA_PLAYGROUND_ENABLED"
-          value = var.enable_openfga_playground ? "true" : "false"
-        }
-        env {
           name  = "OPENFGA_LOG_FORMAT" # Recommended for Cloud Logging
           value = "json"
         }
@@ -173,7 +163,11 @@ resource "google_cloud_run_v2_job" "openfga_run_migrations" {
           name       = "cloudsql"  # Must match the volume name defined above
           mount_path = "/cloudsql" # Standard directory where sockets are placed
         }
-        args = ["migrate"]
+        args = ["migrate",
+          "--datastore-username", google_sql_user.openfga_user.name,
+          "--datastore-engine", "postgres",
+          "--datastore-uri", "postgres://${google_sql_user.openfga_user.name}@/postgres?host=/cloudsql/${google_sql_database_instance.main.connection_name}&sslmode=disable"
+        ]
       }
     }
   }
