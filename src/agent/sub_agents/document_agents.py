@@ -152,13 +152,15 @@ class DocumentHandlerAgent(BaseAgent):
         self,
         _retriever_agent: RetrievalDocumentsAgent,
         _filter_agent: FilterDocumentAgent,
+        _retrieved_context_key: RetrieveContextKey,
     ) -> None:
         """Init."""
         super().__init__(
             name="RAGAgent",
         )
-        self._filter_agent = _filter_agent
-        self._retriever_agent = _retriever_agent
+        self._filter_agent: FilterDocumentAgent = _filter_agent
+        self._retriever_agent: RetrievalDocumentsAgent = _retriever_agent
+        self._retrieved_context_key: RetrieveContextKey = _retrieved_context_key
 
     async def _run_async_impl(
         self, ctx: InvocationContext
@@ -187,5 +189,15 @@ class DocumentHandlerAgent(BaseAgent):
                 and "has_error" in event_metadata
                 and not event_metadata["has_error"]
             ):
-                logger.info("Data successfully filtered.")
-            yield event
+                if ctx.artifact_service is None:
+                    raise RuntimeError()
+                content = await ctx.artifact_service.load_artifact(
+                    app_name=ctx.app_name,
+                    user_id=ctx.user_id,
+                    session_id=ctx.session.id,
+                    filename=self._retrieved_context_key,
+                )
+                if content is None:
+                    content = types.Part(text="Couldn't retrieve the data")
+
+                yield Event(author=self.name, content=types.Content(parts=[content]))

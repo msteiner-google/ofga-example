@@ -16,6 +16,7 @@ dependencies = [
     "uuid7>=0.1.0",
     "google-auth>=2.40.1",
     "pandas>=2.2.3",
+    "gradio>=5.31.0",
     "google-adk>=1.0.0",
 ]
 

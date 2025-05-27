@@ -130,7 +130,9 @@ async def new_message(
     runner: Runner = Injected(Runner),  # noqa: B008
 ) -> dict[str, Any]:
     """New message endpoint."""
-    logger.info("Received new message from user {}", message.user_id)
+    logger.info(
+        "Received new message from user {}. Content: {}", message.user_id, message.body
+    )
     content = types.Content(role="user", parts=[types.Part(text=message.body)])
     session = await get_or_create_session(
         user_id=message.user_id,
@@ -153,6 +155,7 @@ async def new_message(
         ):
             final_response = event.content.parts[0].text
 
+    logger.info("Final response {}", final_response)
     return {"answer": final_response}
 
 

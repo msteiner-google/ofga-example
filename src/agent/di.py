@@ -119,9 +119,9 @@ class AgentModule(Module):
             name="DispatcherAgent",
             description=dedent("""
             You are an assistant. Delegate the requests in the following manner:
-                - financial requests to FinancialAgent
-                - hr requests to HRAgent
-                - reuqests regarding todos to the RAGAgent
+                - financial requests regarding sales numbers to FinancialAgent
+                - hr requests regarding performance ratings to HRAgent
+                - requests regarding todos or things to do to the RAGAgent
             """),
             sub_agents=[hr_agent, document_handler_agent, financial_data_agent],
             output_key=retrieved_context_key,
