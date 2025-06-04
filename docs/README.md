@@ -36,7 +36,7 @@ This means that before any data is fetched, the system modifies the query
 data the requesting user is authorized to access is considered.
 
 This is the recommended way to do ACL checks on tabular data and I deep dive on the subject
-[here](./Authorization model for tabular data.md).
+[here](./Authorization%20model%20for%20tabular%20data.md).
 
 #### Post-Filtering (Results-Time Enforcement)
 
@@ -47,4 +47,6 @@ After this retrieval, a secondary filtering step verifies each item against the 
 permissions before it's used by the language model or presented to the user.
 
 This is usually the preferred way to use in, for instance, a RAG system where the first retrieval
-step generates a tractable number (`O(10s)`) of candidate documents/items
+step generates a tractable number (`O(10s)`) of candidate documents/items. More information [here](./Authorization%20model%20for%20documents.md).
+
+
